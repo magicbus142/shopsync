@@ -1,0 +1,128 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@layer base {
+  :root {
+    /* Base Variables Shared */
+    --radius: 0.5rem;
+
+    /* LIGHT THEME (Default) */
+    --color-background: #ffffff;
+    --color-foreground: #020817;
+
+    --color-card: #ffffff;
+    --color-card-foreground: #020817;
+
+    --color-popover: #ffffff;
+    --color-popover-foreground: #020817;
+
+    --color-primary: #3b82f6; /* Blue-500 */
+    --color-primary-foreground: #ffffff;
+
+    --color-secondary: #f1f5f9; /* Slate-100 */
+    --color-secondary-foreground: #0f172a;
+
+    --color-muted: #f1f5f9;
+    --color-muted-foreground: #64748b;
+
+    --color-accent: #f1f5f9;
+    --color-accent-foreground: #0f172a;
+
+    --color-destructive: #ef4444;
+    --color-destructive-foreground: #f8fafc;
+
+    --color-border: #e2e8f0;
+    --color-input: #e2e8f0;
+    --color-ring: #3b82f6;
+  }
+
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --color-background: #020817; /* Slate-950 */
+    --color-foreground: #f8fafc;
+
+    --color-card: #0f172a; /* Slate-900 */
+    --color-card-foreground: #f8fafc;
+
+    --color-popover: #0f172a;
+    --color-popover-foreground: #f8fafc;
+
+    --color-primary: #3b82f6;
+    --color-primary-foreground: #f8fafc;
+
+    --color-secondary: #1e293b;
+    --color-secondary-foreground: #f8fafc;
+
+    --color-muted: #1e293b;
+    --color-muted-foreground: #94a3b8;
+
+    --color-accent: #1e293b;
+    --color-accent-foreground: #f8fafc;
+
+    --color-destructive: #7f1d1d;
+    --color-destructive-foreground: #f8fafc;
+
+    --color-border: #1e293b;
+    --color-input: #1e293b;
+    --color-ring: #1e40af;
+  }
+
+  [data-theme="midnight"] {
+    --color-background: #1e1b4b; /* Indigo-950 */
+    --color-foreground: #e0e7ff;
+    
+    --color-card: #312e81; /* Indigo-900 */
+    --color-card-foreground: #e0e7ff;
+    
+    --color-muted: #312e81;
+    --color-muted-foreground: #a5b4fc;
+    
+    --color-primary: #6366f1; /* Indigo-500 */
+    --color-primary-foreground: #ffffff;
+
+    --color-input: #4338ca;
+    --color-border: #4338ca;
+  }
+
+  [data-theme="nature"] {
+    --color-background: #064e3b; /* Emerald-900 */
+    --color-foreground: #ecfdf5;
+    
+    --color-card: #065f46; /* Emerald-800 */
+    --color-card-foreground: #ecfdf5;
+    
+    --color-muted: #065f46;
+    --color-muted-foreground: #6ee7b7;
+    
+    --color-primary: #10b981; /* Emerald-500 */
+    --color-primary-foreground: #ffffff;
+
+    --color-input: #047857;
+    --color-border: #047857;
+  }
+
+  [data-theme="sunset"] {
+    --color-background: #431407; /* Orange-950 */
+    --color-foreground: #fff7ed;
+    
+    --color-card: #7c2d12; /* Orange-900 */
+    --color-card-foreground: #fff7ed;
+    
+    --color-muted: #7c2d12;
+    --color-muted-foreground: #fdba74;
+    
+    --color-primary: #f97316; /* Orange-500 */
+    --color-primary-foreground: #ffffff;
+
+    --color-input: #9a3412;
+    --color-border: #9a3412;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+  }
+}
