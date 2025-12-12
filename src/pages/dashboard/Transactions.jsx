@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowUpRight, ArrowDownLeft, Plus, X, Calendar, Package, Users, Search, Filter, Download, Pencil, Trash2, User } from 'lucide-react'
+import { ArrowUpRight, ArrowDownLeft, Plus, X, Calendar, Package, Users, Search, Filter, Download, Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns'
@@ -15,6 +15,7 @@ export default function Transactions() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
   const [products, setProducts] = useState([])
+  const [workers, setWorkers] = useState([])
   const [editingId, setEditingId] = useState(null)
   
   // Modal State
@@ -42,7 +43,6 @@ export default function Transactions() {
     date: new Date().toISOString().split('T')[0],
     productId: '',
     workerId: '',
-    workerId: '',
     quantity: '',
     paymentMethod: 'Cash',
     paymentStatus: 'Paid'
@@ -51,7 +51,6 @@ export default function Transactions() {
   useEffect(() => {
     fetchTransactions()
     fetchProducts()
-    fetchWorkers()
     fetchWorkers()
   }, [])
 
@@ -72,7 +71,16 @@ export default function Transactions() {
     setWorkers(data || [])
   }
 
+  // HELPER HELPERS
+  const getProductName = (id) => {
+    const p = products.find(item => item.id === id)
+    return p ? p.name : 'Unknown Product'
+  }
 
+  const getWorkerName = (id) => {
+    const w = workers.find(item => item.id === id)
+    return w ? w.name : 'Unknown Worker'
+  }
 
   const handleExport = () => {
      // Prepare data for export
@@ -81,7 +89,6 @@ export default function Transactions() {
         Type: t.type,
         Category: t.category,
         Amount: t.amount,
-        Description: t.description,
         Description: t.description,
         Product: t.product_id ? getProductName(t.product_id) : '-',
         Worker: t.worker_id ? getWorkerName(t.worker_id) : '-',
@@ -122,7 +129,6 @@ export default function Transactions() {
       date: t.date,
       productId: t.product_id || '',
       workerId: t.worker_id || '',
-      workerId: t.worker_id || '',
       quantity: t.quantity || '',
       paymentMethod: t.payment_method || 'Cash',
       paymentStatus: t.payment_status || 'Paid'
@@ -160,7 +166,6 @@ export default function Transactions() {
       description: formData.description,
       date: formData.date,
       product_id: formData.category === 'Inventory' || formData.category === 'Sales' ? (formData.productId || null) : null,
-      worker_id: formData.category === 'Salary' ? (formData.workerId || null) : null,
       worker_id: formData.category === 'Salary' ? (formData.workerId || null) : null,
       quantity: formData.quantity || null,
       payment_method: formData.paymentMethod,
@@ -238,27 +243,13 @@ export default function Transactions() {
      })
   }
 
-  // HELPER HELPERS
-  const getProductName = (id) => {
-    const p = products.find(item => item.id === id)
-    return p ? p.name : 'Unknown Product'
-  }
-
-  const getWorkerName = (id) => {
-    const w = workers.find(item => item.id === id)
-    return w ? w.name : 'Unknown Worker'
-  }
-
-
-
   // FILTER LOGIC
   const filteredTransactions = transactions.filter(t => {
-     // 1. Search (Description, Category, Product Name, Worker Name, Customer Name)
+     // 1. Search (Description, Category, Product Name, Worker Name)
      const searchContent = `
         ${t.description || ''} 
         ${t.category} 
         ${t.product_id ? getProductName(t.product_id) : ''} 
-        ${t.worker_id ? getWorkerName(t.worker_id) : ''}
         ${t.worker_id ? getWorkerName(t.worker_id) : ''}
      `.toLowerCase()
      
@@ -352,7 +343,7 @@ export default function Transactions() {
          <div className="relative w-full">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <input 
-              placeholder="Search by description, product, worker, or customer..." 
+              placeholder="Search by description, product, or worker..." 
               className="w-full pl-9 pr-4 py-2 rounded-lg border border-input bg-background"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -440,13 +431,6 @@ export default function Transactions() {
                      <div className="flex flex-wrap items-center gap-2 mb-1">
                         <p className="font-semibold text-lg leading-none">{t.category}</p>
                         
-                        {/* CUSTOMER BADGE */}
-                        {t.customer_id && (
-                             <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 whitespace-nowrap">
-                                 <User className="w-3 h-3" /> <span className="truncate max-w-[100px] sm:max-w-none">{getCustomerName(t.customer_id)}</span>
-                             </span>
-                        )}
-
                         {/* PRODUCT BADGE */}
                         {t.product_id && (
                            <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 whitespace-nowrap">
@@ -651,30 +635,12 @@ export default function Transactions() {
                              <div className="bg-muted/40 px-4 py-2 border-b border-border flex items-center gap-2">
                                 {formData.category === 'Salary' ? <Users className="w-4 h-4 text-purple-500" /> : <Package className="w-4 h-4 text-blue-500" />}
                                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                    {formData.category === 'Salary' ? 'Worker' : (formData.type === 'income' ? 'Bill To' : 'Products')}
+                                    {formData.category === 'Salary' ? 'Worker' : (formData.type === 'income' ? 'Product Info' : 'Products')}
                                 </span>
                              </div>
                              
                              <div className="p-4 grid grid-cols-2 gap-4 bg-card/50">
                                  
-                                 {/* CUSTOMER SELECT (For Income) */}
-                                 {formData.type === 'income' && (
-                                     <div className="col-span-2 space-y-1.5">
-                                        <label className="text-xs font-medium text-muted-foreground">Select Customer {formData.paymentStatus === 'Pending' && <span className="text-red-500">*</span>}</label>
-                                        <select
-                                          className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary"
-                                          value={formData.customerId}
-                                          onChange={(e) => setFormData({...formData, customerId: e.target.value})}
-                                          required={formData.paymentStatus === 'Pending'}
-                                        >
-                                          <option value="">Walk-in / Unknown</option>
-                                          {customers.map(c => (
-                                             <option key={c.id} value={c.id}>{c.name}</option>
-                                          ))}
-                                        </select>
-                                     </div>
-                                 )}
-
                                  {/* Inventory Logic */}
                                  {(formData.category === 'Inventory' || (formData.category === 'Sales' && formData.type === 'income')) && (
                                     <>
