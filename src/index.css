@@ -4,125 +4,130 @@
 @layer base {
   :root {
     /* Base Variables Shared */
-    --radius: 0.5rem;
+    --radius: 0.75rem; /* 12px for a modern, friendly feel */
 
-    /* LIGHT THEME (Default) */
-    --color-background: #ffffff;
-    --color-foreground: #020817;
+    /* 
+       PREMIUM LIGHT THEME 
+       Using a cool-toned, high-contrast palette
+    */
+    --color-background: #ffffff; /* Keeping main bg white for crispness, or very light gray */
+    --color-foreground: #09090b; /* Zinc 950 - softer than pure black */
 
     --color-card: #ffffff;
-    --color-card-foreground: #020817;
+    --color-card-foreground: #09090b;
 
     --color-popover: #ffffff;
-    --color-popover-foreground: #020817;
+    --color-popover-foreground: #09090b;
 
-    --color-primary: #3b82f6; /* Blue-500 */
+    /* Primary: Deep Indigo/Violet */
+    --color-primary: #4f46e5; /* Indigo 600 */
     --color-primary-foreground: #ffffff;
 
-    --color-secondary: #f1f5f9; /* Slate-100 */
-    --color-secondary-foreground: #0f172a;
+    /* Secondary: Soft Gray for subtle backgrounds */
+    --color-secondary: #f4f4f5; /* Zinc 100 */
+    --color-secondary-foreground: #18181b;
 
-    --color-muted: #f1f5f9;
-    --color-muted-foreground: #64748b;
+    --color-muted: #f4f4f5;
+    --color-muted-foreground: #71717a; /* Zinc 500 */
 
-    --color-accent: #f1f5f9;
-    --color-accent-foreground: #0f172a;
+    --color-accent: #f4f4f5;
+    --color-accent-foreground: #18181b;
 
     --color-destructive: #ef4444;
-    --color-destructive-foreground: #f8fafc;
+    --color-destructive-foreground: #ffffff;
 
-    --color-border: #e2e8f0;
-    --color-input: #e2e8f0;
-    --color-ring: #3b82f6;
+    --color-border: #e4e4e7; /* Zinc 200 */
+    --color-input: #e4e4e7;
+    --color-ring: #4f46e5; 
   }
 
   [data-theme="dark"] {
     color-scheme: dark;
-    --color-background: #020817; /* Slate-950 */
-    --color-foreground: #f8fafc;
+    /* 
+       PREMIUM DARK THEME
+       Deep, rich, hole-black background with slightly lighter cards
+    */
+    --color-background: #09090b; /* Zinc 950 */
+    --color-foreground: #fafafa; /* Zinc 50 */
 
-    --color-card: #0f172a; /* Slate-900 */
-    --color-card-foreground: #f8fafc;
+    --color-card: #09090b; /* Same as bg for seamless look, or #18181b for contrast */
+    --color-card-foreground: #fafafa;
 
-    --color-popover: #0f172a;
-    --color-popover-foreground: #f8fafc;
+    --color-popover: #09090b;
+    --color-popover-foreground: #fafafa;
 
-    --color-primary: #3b82f6;
-    --color-primary-foreground: #f8fafc;
+    --color-primary: #6366f1; /* Indigo 500 - brighter for dark mode */
+    --color-primary-foreground: #ffffff;
 
-    --color-secondary: #1e293b;
-    --color-secondary-foreground: #f8fafc;
+    --color-secondary: #27272a; /* Zinc 800 */
+    --color-secondary-foreground: #fafafa;
 
-    --color-muted: #1e293b;
-    --color-muted-foreground: #94a3b8;
+    --color-muted: #27272a;
+    --color-muted-foreground: #a1a1aa; /* Zinc 400 */
 
-    --color-accent: #1e293b;
-    --color-accent-foreground: #f8fafc;
+    --color-accent: #27272a;
+    --color-accent-foreground: #fafafa;
 
     --color-destructive: #7f1d1d;
-    --color-destructive-foreground: #f8fafc;
+    --color-destructive-foreground: #fafafa;
 
-    --color-border: #1e293b;
-    --color-input: #1e293b;
-    --color-ring: #1e40af;
+    --color-border: #27272a;
+    --color-input: #27272a;
+    --color-ring: #6366f1;
   }
-
+  
   [data-theme="midnight"] {
-    --color-background: #1e1b4b; /* Indigo-950 */
+    /* Deep Blue/Purple Theme */
+    --color-background: #020617; 
     --color-foreground: #e0e7ff;
     
-    --color-card: #312e81; /* Indigo-900 */
+    --color-card: #0f172a; 
     --color-card-foreground: #e0e7ff;
     
-    --color-muted: #312e81;
-    --color-muted-foreground: #a5b4fc;
+    --color-muted: #1e293b;
+    --color-muted-foreground: #94a3b8;
     
-    --color-primary: #6366f1; /* Indigo-500 */
+    --color-primary: #818cf8; 
     --color-primary-foreground: #ffffff;
 
-    --color-input: #4338ca;
-    --color-border: #4338ca;
-  }
-
-  [data-theme="nature"] {
-    --color-background: #064e3b; /* Emerald-900 */
-    --color-foreground: #ecfdf5;
-    
-    --color-card: #065f46; /* Emerald-800 */
-    --color-card-foreground: #ecfdf5;
-    
-    --color-muted: #065f46;
-    --color-muted-foreground: #6ee7b7;
-    
-    --color-primary: #10b981; /* Emerald-500 */
-    --color-primary-foreground: #ffffff;
-
-    --color-input: #047857;
-    --color-border: #047857;
-  }
-
-  [data-theme="sunset"] {
-    --color-background: #431407; /* Orange-950 */
-    --color-foreground: #fff7ed;
-    
-    --color-card: #7c2d12; /* Orange-900 */
-    --color-card-foreground: #fff7ed;
-    
-    --color-muted: #7c2d12;
-    --color-muted-foreground: #fdba74;
-    
-    --color-primary: #f97316; /* Orange-500 */
-    --color-primary-foreground: #ffffff;
-
-    --color-input: #9a3412;
-    --color-border: #9a3412;
+    --color-input: #1e293b;
+    --color-border: #1e293b;
   }
 
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 300ms;
+    font-feature-settings: "rlig" 1, "calt" 1; /* Optimize font rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+/* Custom Utilities for Glassmorphism */
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .dark .glass {
+    background: rgba(9, 9, 11, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .glass-card {
+     background: rgba(255, 255, 255, 0.8);
+     backdrop-filter: blur(12px);
+     border: 1px solid rgba(200, 200, 200, 0.2);
+     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  }
+
+  .dark .glass-card {
+     background: rgba(24, 24, 27, 0.6);
+     border: 1px solid rgba(255, 255, 255, 0.08);
+     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
   }
 }

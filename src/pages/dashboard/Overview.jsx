@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, Wallet, Package, Users } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts'
+import { TrendingUp, TrendingDown, Wallet, Package, Users, Clock, AlertCircle, CheckCircle } from 'lucide-react'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, LabelList } from 'recharts'
 import { supabase } from '../../lib/supabase'
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO, eachDayOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { Link } from 'react-router-dom'
@@ -20,7 +20,8 @@ export default function Overview() {
     inventoryBarData: [],
     workerBarData: [],
     inventoryCount: 0,
-    workersCount: 0
+    workersCount: 0,
+    pendingPayments: []
   })
   
   // Date Filter State
@@ -85,12 +86,63 @@ export default function Overview() {
     // 3. Fetch Workers (for Worker Stats)
     const { data: workers } = await supabase.from('workers').select('*')
 
+    // 4. Fetch Pending (Separate from date filter)
+    const { data: pendingT } = await supabase
+        .from('transactions')
+        .select('*')
+        .or('payment_status.eq.Pending,payment_status.eq.Partial')
+        .order('date', { ascending: true }) // Oldest due first
+        .limit(6) // Top 6
+
     if (error) { console.error(error); setLoading(false); return }
 
-    // 4. Process KPI Data
+    // 4. Process KPI Data & Product Revenue
     const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0)
     const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0)
     const netProfit = totalIncome - totalExpenses
+
+    // --- Product Revenue Calculation ---
+    const productRevenueMap = {}
+    const txnIds = transactions.map(t => t.id)
+    
+    // A. Legacy/Single Product Transactions
+    transactions.forEach(t => {
+        if (t.type === 'income' && t.product_id) {
+             productRevenueMap[t.product_id] = (productRevenueMap[t.product_id] || 0) + Number(t.amount)
+        }
+    })
+
+    // B. Multi-item Transactions (Fetch items for these transactions)
+    if (txnIds.length > 0) {
+        const { data: items } = await supabase
+            .from('transaction_items')
+            .select('*')
+            .in('transaction_id', txnIds)
+        
+        if (items) {
+            items.forEach(item => {
+                // Determine if parent txn is income (it should be if items exist, usually)
+                // We rely on the fact we only fetched items for the filtered transactions
+                // But we should verify if the item's parent txn is actually INCOME.
+                // We can look up the parent in our `transactions` array.
+                const parent = transactions.find(t => t.id === item.transaction_id)
+                if (parent && parent.type === 'income') {
+                     productRevenueMap[item.product_id] = (productRevenueMap[item.product_id] || 0) + Number(item.total_price)
+                }
+            })
+        }
+    }
+
+    const productRevenueData = Object.keys(productRevenueMap).map(pid => {
+         const product = products.find(p => p.id === pid)
+         return {
+             name: product ? product.name : 'Unknown',
+             revenue: productRevenueMap[pid]
+         }
+    })
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5) // Top 5
+    // -----------------------------------
 
     // 5. Process Income Trend (Area Chart)
     const start = parseISO(dateRange.from)
@@ -127,7 +179,8 @@ export default function Overview() {
        .slice(0, 5) // Products are already ordered by stock ascending
        .map(p => ({
           name: p.name,
-          stock: p.stock
+          stock: p.stock,
+          initial: p.initial_stock || 0
        }))
 
     // 8. Process Worker Bar Data (Top 5 Paid in Period)
@@ -149,8 +202,10 @@ export default function Overview() {
       pieData,
       inventoryBarData,
       workerBarData,
+      productRevenueData, // Add new data
       inventoryCount: products?.length || 0,
-      workersCount: workers?.length || 0
+      workersCount: workers?.length || 0,
+      pendingPayments: pendingT || []
     })
     setLoading(false)
   }
@@ -344,14 +399,14 @@ export default function Overview() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Inventory Bar Chart */}
                 <div className="bg-card border border-border rounded-xl p-6 shadow-sm h-[400px]">
-                    <h3 className="text-lg font-semibold mb-6">Lowest Stock Products</h3>
+                    <h3 className="text-lg font-semibold mb-6">Products Stock</h3>
                     {data.inventoryBarData.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-muted-foreground">No products found.</div>
                     ) : (
                         <ResponsiveContainer width="100%" height="85%">
-                           <BarChart data={data.inventoryBarData} layout="vertical">
+                           <BarChart data={data.inventoryBarData} layout="vertical" margin={{ right: 30 }}>
                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-secondary)" opacity={0.2} />
-                               <XAxis type="number" hide />
+                               <XAxis type="number" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
                                <YAxis 
                                   dataKey="name" 
                                   type="category" 
@@ -359,13 +414,16 @@ export default function Overview() {
                                   stroke="var(--color-muted-foreground)" 
                                   axisLine={false} 
                                   tickLine={false}
+                                  fontSize={12}
                                />
                                <Tooltip 
                                   contentStyle={{ backgroundColor: 'var(--color-background)', color: 'var(--color-foreground)', borderRadius: '8px', border: '1px solid var(--border)' }}
                                   cursor={{fill: 'transparent'}}
                                />
-                               <Bar dataKey="initial" fill="var(--color-muted)" radius={[0, 4, 4, 0]} barSize={20} name="Initial Stock" />
-                               <Bar dataKey="stock" fill="#F97316" radius={[0, 4, 4, 0]} barSize={20} name="Current Stock" />
+                               <Bar dataKey="initial" fill="#10B981" radius={[0, 4, 4, 0]} barSize={20} name="Initial Stock" />
+                               <Bar dataKey="stock" fill="#F97316" radius={[0, 4, 4, 0]} barSize={20} name="Current Stock">
+                                   <LabelList dataKey="stock" position="right" fill="var(--color-foreground)" fontSize={12} />
+                               </Bar>
                            </BarChart>
                         </ResponsiveContainer>
                     )}
@@ -378,25 +436,107 @@ export default function Overview() {
                         <div className="h-full flex items-center justify-center text-muted-foreground">No payment data in this period.</div>
                     ) : (
                         <ResponsiveContainer width="100%" height="85%">
-                           <BarChart data={data.workerBarData}>
+                           <BarChart data={data.workerBarData} margin={{ top: 20 }}>
                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-secondary)" opacity={0.2} />
                                <XAxis 
                                   dataKey="name" 
                                   stroke="var(--color-muted-foreground)" 
                                   axisLine={false} 
-                                  tickLine={false} 
+                                  tickLine={false}
+                                  fontSize={12} 
                                />
-                               <YAxis stroke="var(--color-muted-foreground)" axisLine={false} tickLine={false} tickFormatter={(value) => `₹${value}`} />
+                               <YAxis stroke="var(--color-muted-foreground)" axisLine={false} tickLine={false} tickFormatter={(value) => `₹${value}`} fontSize={12} />
                                <Tooltip 
                                   contentStyle={{ backgroundColor: 'var(--color-background)', color: 'var(--color-foreground)', borderRadius: '8px', border: '1px solid var(--border)' }}
                                   cursor={{fill: 'transparent'}}
+                                  formatter={(value) => `₹${value.toLocaleString()}`}
                                />
-                               <Bar dataKey="paid" fill="#8B5CF6" radius={[4, 4, 0, 0]} barSize={30} name="Total Paid" />
+                               <Bar dataKey="paid" fill="#8B5CF6" radius={[4, 4, 0, 0]} barSize={30} name="Total Paid">
+                                   <LabelList dataKey="paid" position="top" formatter={(value) => `₹${value}`} fill="var(--color-foreground)" fontSize={12} />
+                               </Bar>
                            </BarChart>
                         </ResponsiveContainer>
                     )}
                 </div>
             </div>
+
+            {/* Product Revenue Chart */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                 <div className="bg-card border border-border rounded-xl p-6 shadow-sm h-[400px]">
+                    <h3 className="text-lg font-semibold mb-6">Top Selling Products (Revenue)</h3>
+                     {data.productRevenueData && data.productRevenueData.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-muted-foreground">No sales data in this period.</div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height="85%">
+                           <BarChart data={data.productRevenueData} layout="vertical" margin={{ right: 40 }}>
+                               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-secondary)" opacity={0.2} />
+                               <XAxis type="number" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `₹${val}`} />
+                               <YAxis 
+                                  dataKey="name" 
+                                  type="category" 
+                                  width={100} 
+                                  stroke="var(--color-muted-foreground)" 
+                                  axisLine={false} 
+                                  tickLine={false}
+                                  fontSize={12}
+                               />
+                               <Tooltip 
+                                  contentStyle={{ backgroundColor: 'var(--color-background)', color: 'var(--color-foreground)', borderRadius: '8px', border: '1px solid var(--border)' }}
+                                  cursor={{fill: 'transparent'}}
+                                  formatter={(value) => `₹${value.toLocaleString()}`}
+                               />
+                               <Bar dataKey="revenue" fill="#10B981" radius={[0, 4, 4, 0]} barSize={30} name="Revenue">
+                                   <LabelList dataKey="revenue" position="right" formatter={(value) => `₹${value}`} fill="var(--color-foreground)" fontSize={12} />
+                               </Bar>
+                           </BarChart>
+                        </ResponsiveContainer>
+                    )}
+                </div>
+            {/* Pending Section */}
+            <div className="grid grid-cols-1 gap-6 pb-8">
+                 {/* Pending Payments */}
+                 <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+                    <div className="flex items-center gap-2 mb-6">
+                        <AlertCircle className="w-5 h-5 text-orange-500" />
+                        <h3 className="text-lg font-semibold">Pending Payments</h3>
+                    </div>
+                    <div className="space-y-3">
+                         {data.pendingPayments.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+                                <CheckCircle className="w-10 h-10 mb-2 opacity-20" />
+                                <p>All payments settled!</p>
+                            </div>
+                         ) : (
+                            data.pendingPayments.map((t) => {
+                                const pendingAmount = Math.max(0, Number(t.amount) - (Number(t.amount_paid) || 0))
+                                return (
+                                    <div key={t.id} className="flex items-center justify-between border-b border-border/50 last:border-0 pb-3 last:pb-0">
+                                        <div>
+                                            <p className="font-medium text-sm">{t.description}</p>
+                                            <div className="flex gap-2 mt-1">
+                                                <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">
+                                                    {t.payment_status}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">{format(parseISO(t.date), 'dd MMM')}</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-bold text-orange-600">₹{pendingAmount.toLocaleString()}</p>
+                                            <p className="text-xs text-muted-foreground">of ₹{Number(t.amount).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                )
+                            })
+                         )}
+                         {data.pendingPayments.length > 0 && (
+                             <Link to="/dashboard/transactions?status=Pending" className="block text-center text-sm text-primary hover:underline pt-2">
+                                 View All Pending
+                             </Link>
+                         )}
+                    </div>
+                 </div>
+            </div>
+        </div>
         </>
       )}
     </>

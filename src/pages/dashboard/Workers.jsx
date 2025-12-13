@@ -6,6 +6,7 @@ import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-f
 import * as XLSX from 'xlsx'
 import DateRangePicker from '../../components/ui/DateRangePicker'
 import ConfirmationModal from '../../components/ui/ConfirmationModal'
+import Pagination from '../../components/ui/Pagination'
 import { useToast } from '../../context/ToastContext'
 
 export default function Workers() {
@@ -34,6 +35,14 @@ export default function Workers() {
 
   const [formData, setFormData] = useState({ name: '', role: '', phone: '', salary: '', image_url: '' })
   const [uploading, setUploading] = useState(false)
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 8
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search])
 
   // ... (handleImageUpload same)
 
@@ -261,6 +270,12 @@ export default function Workers() {
     (w.role && w.role.toLowerCase().includes(search.toLowerCase()))
   )
 
+  // Pagination Logic
+  const indexOfLastItem = currentPage * itemsPerPage
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const currentWorkers = filteredWorkers.slice(indexOfFirstItem, indexOfLastItem)
+  const totalPages = Math.ceil(filteredWorkers.length / itemsPerPage)
+
   return (
     <div className="space-y-6 relative min-h-[80vh]">
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 pr-14 md:pr-0">
@@ -326,7 +341,7 @@ export default function Workers() {
                ) : filteredWorkers.length === 0 ? (
                  <tr><td colSpan="6" className="p-8 text-center text-muted-foreground">No workers found.</td></tr>
                ) : (
-                 filteredWorkers.map((worker) => {
+                 currentWorkers.map((worker) => {
                    const stats = getWorkerStats(worker.id)
                    return (
                      <tr key={worker.id} className="hover:bg-muted/30 transition-colors">
@@ -389,7 +404,7 @@ export default function Workers() {
         ) : filteredWorkers.length === 0 ? (
              <div className="p-8 text-center text-muted-foreground bg-card border border-border rounded-xl">No workers found.</div>
         ) : (
-            filteredWorkers.map((worker) => {
+            currentWorkers.map((worker) => {
                 const stats = getWorkerStats(worker.id)
                 return (
                     <div key={worker.id} className="bg-card border border-border rounded-xl p-4 shadow-sm space-y-4">
@@ -458,6 +473,15 @@ export default function Workers() {
         )}
       </div>
       
+      {/* Pagination */}
+      {filteredWorkers.length > itemsPerPage && (
+        <Pagination 
+           currentPage={currentPage}
+           totalPages={totalPages}
+           onPageChange={setCurrentPage}
+        />
+      )}
+
       {/* FAB for Mobile */}
       <button 
         onClick={() => setShowModal(true)}

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Plus, Package, Download, Upload, Pencil, Trash2 } from 'lucide-react'
+import { Search, Plus, Package, Download, Upload, Pencil, Trash2, Eye, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import * as XLSX from 'xlsx'
 import ConfirmationModal from '../../components/ui/ConfirmationModal'
+import Pagination from '../../components/ui/Pagination'
 
 export default function Inventory() {
   const [showAddForm, setShowAddForm] = useState(false)
@@ -14,6 +15,29 @@ export default function Inventory() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 9
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, filter])
+  
+  // View/History State
+  const [viewProduct, setViewProduct] = useState(null)
+  const [productHistory, setProductHistory] = useState([])
+
+  const handleView = async (product) => {
+    setViewProduct(product)
+    const { data } = await supabase
+        .from('product_history')
+        .select('*')
+        .eq('product_id', product.id)
+        .order('changed_at', { ascending: false })
+    
+    setProductHistory(data || [])
+  }
   
   // Modal State
   const [confirmModal, setConfirmModal] = useState({ 
@@ -222,6 +246,12 @@ export default function Inventory() {
     return { color: 'bg-green-500', bg: 'bg-green-100 dark:bg-green-900/30', width: '80%' }
   }
 
+  const filteredProducts = getFilteredProducts()
+  const indexOfLastItem = currentPage * itemsPerPage
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const currentItems = filteredProducts.slice(indexOfFirstItem, indexOfLastItem)
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
+
   return (
     <div className="w-full space-y-6 relative min-h-[80vh]">
       {/* Header */}
@@ -278,7 +308,7 @@ export default function Inventory() {
       {/* Product List - Grid on large screens */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
         <AnimatePresence mode="popLayout">
-          {getFilteredProducts().map((product) => {
+          {currentItems.map((product) => {
             const status = getStockStatus(product)
             return (
               <motion.div
@@ -327,6 +357,7 @@ export default function Inventory() {
 
                        {/* Action Buttons (Hover only or visible on mobile) */}
                        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                         <button onClick={() => handleView(product)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md" title="View History"><Eye className="w-3.5 h-3.5" /></button>
                          <button onClick={() => handleEdit(product)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md"><Pencil className="w-3.5 h-3.5" /></button>
                          <button onClick={() => handleDelete(product.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
                        </div>
@@ -358,6 +389,15 @@ export default function Inventory() {
         )}
         
       </div>
+
+      {/* Pagination */}
+      {filteredProducts.length > itemsPerPage && (
+        <Pagination 
+           currentPage={currentPage}
+           totalPages={totalPages}
+           onPageChange={setCurrentPage}
+        />
+      )}
 
       {/* FAB */}
       <button 
@@ -506,6 +546,72 @@ export default function Inventory() {
         message={confirmModal.message}
         variant={confirmModal.variant}
       />
+
+      {/* View History Modal */}
+      <AnimatePresence>
+        {viewProduct && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-card w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] overflow-y-auto"
+            >
+               <div className="p-6 border-b border-border flex justify-between items-center sticky top-0 bg-card z-10">
+                <div>
+                    <h3 className="text-xl font-bold">{viewProduct.name}</h3>
+                    <p className="text-sm text-muted-foreground">History Log</p>
+                </div>
+                <button onClick={() => setViewProduct(null)} className="p-1 hover:bg-muted rounded-full">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-0">
+                  <table className="w-full text-sm text-left">
+                      <thead className="bg-muted/50 text-muted-foreground font-medium sticky top-0">
+                          <tr>
+                              <th className="px-6 py-3">Date</th>
+                              <th className="px-6 py-3">Field</th>
+                              <th className="px-6 py-3">Old Value</th>
+                              <th className="px-6 py-3">New Value</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                          {productHistory.length === 0 ? (
+                              <tr>
+                                  <td colSpan="4" className="px-6 py-8 text-center text-muted-foreground italic">
+                                      No edit history found.
+                                  </td>
+                              </tr>
+                          ) : (
+                              productHistory.map((h) => (
+                                  <tr key={h.id} className="hover:bg-muted/20">
+                                      <td className="px-6 py-3 text-muted-foreground whitespace-nowrap">
+                                          {new Date(h.changed_at).toLocaleString()}
+                                      </td>
+                                      <td className="px-6 py-3 font-medium capitalize">{h.field_changed.replace(/_/g, ' ')}</td>
+                                      <td className="px-6 py-3 text-red-500 line-through opacity-70">{String(h.old_value || '-')}</td>
+                                      <td className="px-6 py-3 text-green-600">{String(h.new_value || '-')}</td>
+                                  </tr>
+                              ))
+                          )}
+                      </tbody>
+                  </table>
+              </div>
+              
+              <div className="p-4 border-t border-border bg-muted/10 text-right">
+                  <button 
+                    onClick={() => setViewProduct(null)}
+                    className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
+                  >
+                      Close
+                  </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
