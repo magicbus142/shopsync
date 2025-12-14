@@ -13,6 +13,17 @@ export default function Login() {
   const navigate = useNavigate()
   const { theme } = useTheme()
 
+  useEffect(() => {
+    // Check if user is already logged in
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        navigate('/dashboard')
+      }
+    }
+    checkUser()
+  }, [navigate])
+
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -122,7 +133,7 @@ export default function Login() {
                     <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                     Remember me
                   </label>
-                  <a href="#" className="font-semibold text-blue-600 hover:text-blue-500">Reset Password!</a>
+                  <Link to="/forgot-password" className="font-semibold text-blue-600 hover:text-blue-500">Reset Password!</Link>
               </div>
 
               <button

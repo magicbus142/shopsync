@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowUpRight, ArrowDownLeft, Plus, X, Calendar, Package, Users, Search, Filter, Download, Pencil, Trash2, Eye } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useOrganization } from '../../context/OrganizationContext'
 import { useToast } from '../../context/ToastContext'
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns'
 import * as XLSX from 'xlsx'
@@ -10,6 +11,7 @@ import ConfirmationModal from '../../components/ui/ConfirmationModal'
 import Pagination from '../../components/ui/Pagination'
 
 export default function Transactions() {
+  const { currentOrg } = useOrganization()
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -85,25 +87,30 @@ export default function Transactions() {
   }
 
   useEffect(() => {
-    fetchTransactions()
-    fetchProducts()
-    fetchWorkers()
-  }, [])
+    if (currentOrg) {
+        fetchTransactions()
+        fetchProducts()
+        fetchWorkers()
+    }
+  }, [currentOrg])
 
   const fetchTransactions = async () => {
+    if (!currentOrg) return
     setLoading(true)
-    const { data } = await supabase.from('transactions').select('*, transaction_items(*)').order('date', { ascending: false })
+    const { data } = await supabase.from('transactions').select('*, transaction_items(*)').eq('organization_id', currentOrg.id).order('created_at', { ascending: false })
     setTransactions(data || [])
     setLoading(false)
   }
 
   const fetchProducts = async () => {
-    const { data } = await supabase.from('products').select('*')
+    if (!currentOrg) return
+    const { data } = await supabase.from('products').select('*').eq('organization_id', currentOrg.id)
     setProducts(data || [])
   }
 
   const fetchWorkers = async () => {
-    const { data } = await supabase.from('workers').select('*')
+    if (!currentOrg) return
+    const { data } = await supabase.from('workers').select('*').eq('organization_id', currentOrg.id)
     setWorkers(data || [])
   }
 
@@ -298,6 +305,7 @@ export default function Transactions() {
 
       // 1. Prepare Transaction Data
       const payload = {
+        organization_id: currentOrg.id,
         user_id: userId,
         type: formData.type,
         amount: formData.amount,

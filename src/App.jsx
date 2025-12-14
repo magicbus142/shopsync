@@ -8,6 +8,8 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Onboarding from './pages/Onboarding'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import ForgotPassword from './pages/ForgotPassword'
+import UpdatePassword from './pages/UpdatePassword'
 import DashboardLayout from './components/layout/DashboardLayout'
 import Overview from './pages/dashboard/Overview'
 import Inventory from './pages/dashboard/Inventory'
@@ -15,6 +17,7 @@ import Workers from './pages/dashboard/Workers'
 import Transactions from './pages/dashboard/Transactions'
 import Reports from './pages/dashboard/Reports'
 import Settings from './pages/dashboard/Settings'
+import InvoiceGenerator from './pages/dashboard/InvoiceGenerator'
 
 // Layout Component (Only for Dashboard/Auth pages if needed, Home has its own layout)
 const Layout = ({ children }) => {
@@ -29,31 +32,37 @@ const Layout = ({ children }) => {
 }
 
 import { ToastProvider } from './context/ToastContext'
+import { OrganizationProvider } from './context/OrganizationContext'
 
 function App() {
   return (
     <ToastProvider>
-      <Layout>
-        <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/onboarding" element={<Onboarding />} />
-        
-        {/* Dashboard Routes (Protected) */}
-        <Route path="/dashboard" element={<DashboardLayout />}>
-          <Route index element={<Overview />} />
-          <Route path="inventory" element={<Inventory />} />
-          <Route path="workers" element={<Workers />} />
-          <Route path="transactions" element={<Transactions />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
+      <OrganizationProvider>
+        <Layout>
+          <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          
+          {/* Dashboard Routes (Protected) */}
+          <Route path="/dashboard" element={<DashboardLayout />}>
+            <Route index element={<Overview />} />
+            <Route path="inventory" element={<Inventory />} />
+            <Route path="workers" element={<Workers />} />
+            <Route path="transactions" element={<Transactions />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="invoice" element={<InvoiceGenerator />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
 
-        {/* Admin Route */}
-        <Route path="/admin" element={<AdminDashboard />} />
-      </Routes>
-    </Layout>
+          {/* Admin Route */}
+          <Route path="/admin" element={<AdminDashboard />} />
+        </Routes>
+      </Layout>
+      </OrganizationProvider>
     </ToastProvider>
   )
 }

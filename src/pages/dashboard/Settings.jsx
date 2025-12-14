@@ -11,7 +11,12 @@ export default function Settings() {
   const [message, setMessage] = useState({ type: '', text: '' })
   
   // Profile State
-  const [profile, setProfile] = useState({ shopName: '', email: '' })
+  const [profile, setProfile] = useState({ shopName: '', email: '', fullName: '' })
+  const [user, setUser] = useState(null)
+  
+  // Edit State
+  const [isEditing, setIsEditing] = useState(false)
+  const [editForm, setEditForm] = useState({ fullName: '', shopName: '', email: '' })
   
   // Fetch data on mount
   useEffect(() => {
@@ -21,9 +26,16 @@ export default function Settings() {
   async function fetchProfile() {
       try {
           const { data: { user } } = await supabase.auth.getUser()
+          setUser(user)
           if (user) {
               const { data } = await supabase.from('profiles').select('shop_name, full_name').eq('id', user.id).single()
               setProfile({
+                  email: user.email,
+                  shopName: data?.shop_name || 'My Shop',
+                  fullName: data?.full_name || 'Admin'
+              })
+              // Init edit form
+              setEditForm({
                   email: user.email,
                   shopName: data?.shop_name || 'My Shop',
                   fullName: data?.full_name || 'Admin'
@@ -32,6 +44,55 @@ export default function Settings() {
       } catch (e) {
           console.error("Failed to fetch profile", e)
       }
+  }
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      // 1. Update Profile (Name, Shop Name)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: editForm.fullName,
+          shop_name: editForm.shopName,
+          updated_at: new Date()
+        })
+        .eq('id', user.id)
+
+      if (profileError) throw profileError
+
+      // 2. Update Organization Name (Best Effort)
+      const { error: orgError } = await supabase
+        .from('organizations')
+        .update({ name: editForm.shopName })
+        .eq('owner_id', user.id) 
+      
+      if (orgError) console.warn("Could not update org name:", orgError)
+
+      // 3. Update Email (if changed)
+      let emailMessage = ''
+      if (editForm.email !== user.email) {
+        const { error: authError } = await supabase.auth.updateUser({ email: editForm.email })
+        if (authError) throw authError
+        emailMessage = ' Please check your new email to confirm the change.'
+      }
+
+      setMessage({ type: 'success', text: `Profile updated successfully!${emailMessage}` })
+      setIsEditing(false)
+      fetchProfile() // Refresh data
+      
+      // Reload if shop name changed to update context/sidebar
+      if (profile.shopName !== editForm.shopName) {
+         setTimeout(() => window.location.reload(), 1500)
+      }
+
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handlePasswordChange = async (e) => {
@@ -69,10 +130,76 @@ export default function Settings() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-8"
     >
+      
+      {/* Edit Modal */}
+      {isEditing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card w-full max-w-md rounded-2xl shadow-2xl border border-border p-6 animate-in fade-in zoom-in-95">
+             <h2 className="text-xl font-bold mb-4 text-foreground">Edit Profile</h2>
+             <form onSubmit={handleUpdateProfile} className="space-y-4">
+                <div>
+                   <label className="text-sm font-medium text-muted-foreground block mb-1">Full Name</label>
+                   <input 
+                      type="text" 
+                      value={editForm.fullName}
+                      onChange={e => setEditForm({...editForm, fullName: e.target.value})}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground"
+                   />
+                </div>
+                <div>
+                   <label className="text-sm font-medium text-muted-foreground block mb-1">Shop Name</label>
+                   <input 
+                      type="text" 
+                      value={editForm.shopName}
+                      onChange={e => setEditForm({...editForm, shopName: e.target.value})}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground"
+                   />
+                </div>
+                <div>
+                   <label className="text-sm font-medium text-muted-foreground block mb-1">Email Address</label>
+                   <input 
+                      type="email" 
+                      value={editForm.email}
+                      onChange={e => setEditForm({...editForm, email: e.target.value})}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground"
+                   />
+                   <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
+                     * Changing email requires confirmation.
+                   </p>
+                </div>
+                
+                <div className="flex justify-end gap-3 mt-6">
+                   <button 
+                     type="button" 
+                     onClick={() => setIsEditing(false)}
+                     className="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-lg"
+                   >
+                     Cancel
+                   </button>
+                   <button 
+                     type="submit" 
+                     disabled={loading}
+                     className="px-4 py-2 text-sm font-bold text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg"
+                   >
+                     {loading ? 'Saving...' : 'Save Changes'}
+                   </button>
+                </div>
+             </form>
+          </div>
+        </div>
+      )}
+
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
         <p className="text-muted-foreground">Manage your shop preferences.</p>
       </div>
+      
+      {/* Global Message */}
+      {message.text && (
+          <div className={`p-4 rounded-xl text-sm font-medium ${message.type === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-green-500/10 text-green-600'}`}>
+            {message.text}
+          </div>
+      )}
 
       {/* Profile Card */}
       <div className="bg-card border border-border rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
@@ -89,7 +216,12 @@ export default function Settings() {
                 </p>
              </div>
           </div>
-          <button className="text-primary text-sm font-medium hover:underline">Edit Profile</button>
+          <button 
+            onClick={() => setIsEditing(true)}
+            className="text-primary text-sm font-medium hover:underline"
+          >
+            Edit Profile
+          </button>
       </div>
 
       <div className="bg-card border border-border rounded-xl p-6">
@@ -97,11 +229,6 @@ export default function Settings() {
            <Lock className="w-5 h-5" /> Security
          </h3>
          <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
-            {message.text && (
-              <div className={`p-3 rounded-lg text-sm ${message.type === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-green-500/10 text-green-600'}`}>
-                {message.text}
-              </div>
-            )}
             <div className="space-y-2">
               <label className="text-sm font-medium">New Password</label>
               <input 

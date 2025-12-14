@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { LayoutDashboard, Receipt, Package, Settings, LogOut, Menu, X, Users as UsersIcon, Shield } from 'lucide-react'
+import { LayoutDashboard, Receipt, Package, Settings, LogOut, Menu, X, Users as UsersIcon, Shield, FileText, BarChart3 } from 'lucide-react'
+import { OrganizationSelector } from '../organization/OrganizationSelector'
 
 const SIDEBAR_ITEMS = [
   { icon: LayoutDashboard, label: 'Overview', href: '/dashboard' },
+  { icon: BarChart3, label: 'Reports', href: '/dashboard/reports' },
   { icon: Package, label: 'Inventory', href: '/dashboard/inventory' },
   { icon: UsersIcon, label: 'Workers', href: '/dashboard/workers' },
   { icon: Receipt, label: 'Transactions', href: '/dashboard/transactions' },
+  { icon: FileText, label: 'Invoice', href: '/dashboard/invoice' },
   { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
 ]
 
@@ -28,14 +31,9 @@ export default function DashboardLayout({ children }) {
           const { data: profile } = await supabase.from('profiles').select('shop_name').eq('id', user.id).maybeSingle()
           if (profile?.shop_name) setShopName(profile.shop_name)
           
-          // 2. Check Admin Status (Strict Database Check)
-          const { data: adminUser } = await supabase
-            .from('admin_users')
-            .select('email')
-            .eq('email', user.email)
-            .maybeSingle()
-            
-          setIsAdmin(!!adminUser)
+          // 2. Check Admin Status (Simple Email Check)
+          const ADMIN_EMAILS = ['swamy@magicbus142.com', 'gangabhavani@gmail.com', 'baba@gmail.com']
+          setIsAdmin(ADMIN_EMAILS.includes(user.email))
         }
       } catch (error) {
         console.error('Error fetching profile:', error)
@@ -46,14 +44,10 @@ export default function DashboardLayout({ children }) {
     fetchProfile()
   }, [])
   
-  // Menu Logic: Admins see ONLY Admin; Users see standard items
-  let menuItems = []
-  if (!loadingRole) {
-      if (isAdmin) {
-        menuItems = [{ icon: Shield, label: 'Admin', href: '/admin' }]
-      } else {
-        menuItems = SIDEBAR_ITEMS
-      }
+  // Menu Logic: Admins see Admin Link + Standard Items
+  let menuItems = [...SIDEBAR_ITEMS]
+  if (isAdmin) {
+      menuItems.push({ icon: Shield, label: 'Platform Admin', href: '/admin' })
   }
 
   const handleLogout = async () => {
@@ -80,6 +74,9 @@ export default function DashboardLayout({ children }) {
             <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               {shopName}
             </h1>
+            <div className="mt-4">
+                <OrganizationSelector />
+            </div>
         </div>
 
         <nav className="flex-1 space-y-2 overflow-y-auto py-2">

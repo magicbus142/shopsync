@@ -1,115 +1,96 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, Trash2 } from 'lucide-react'
+import { 
+  Building2, 
+  Users, 
+  ShoppingBag, 
+  CreditCard,
+  TrendingUp,
+  ShieldAlert,
+  Search
+} from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
+import { format, formatDistanceToNow } from 'date-fns'
 
 export default function AdminDashboard() {
-  const [whitelist, setWhitelist] = useState([])
-  const [newEmail, setNewEmail] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(null) // null = loading
-
+  const [stats, setStats] = useState([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
-    checkAdmin()
+    fetchPlatformStats()
   }, [])
 
-  const checkAdmin = async () => {
+  const fetchPlatformStats = async () => {
     try {
-        // Timeout Promise
-        const timeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Admin check timed out. Database might be locked or slow.')), 5000)
-        )
-
-        // Admin Check Promise
-        const check = async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
-              const { data } = await supabase
-                .from('admin_users')
-                .select('email')
-                .eq('email', user.email)
-                .maybeSingle()
-              
-              if (data) {
-                setIsAdmin(true)
-                fetchWhitelist()
-              } else {
-                setIsAdmin(false)
-              }
-            } else {
-              setIsAdmin(false)
-            }
-        }
-
-        // Race them
-        await Promise.race([check(), timeout])
+      const { data, error } = await supabase.rpc('get_platform_stats')
+      
+      if (error) throw error
+      setStats(data || [])
     } catch (err) {
-        console.error('Admin Check Error:', err)
-        setError(err.message)
-        setIsAdmin(false) // Stop loading state
+      console.error('Admin Error:', err)
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const fetchWhitelist = async () => {
-    const { data, error } = await supabase.from('whitelist').select('*').order('created_at', { ascending: false })
-    if (data) setWhitelist(data)
-    if (error) console.error('Error fetching whitelist:', error)
+  const handleUpdatePlan = async (orgId, newPlan) => {
+     try {
+        const { error } = await supabase.rpc('update_organization_plan', {
+           target_org_id: orgId,
+           new_plan_key: newPlan
+        })
+        if (error) throw error
+        
+        // Optimistic update or refetch
+        setStats(prev => prev.map(org => 
+           org.org_id === orgId ? { ...org, plan_key: newPlan } : org
+        ))
+        
+        // Optional: Show toast or simple alert
+        // alert(`Plan updated to ${newPlan}`) 
+     } catch (err) {
+        console.error('Update Error:', err)
+        alert('Failed to update plan: ' + err.message)
+     }
   }
 
-  const handleAddEmail = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    const { error } = await supabase.from('whitelist').insert([{ email: newEmail }])
-    
-    if (error) {
-      alert('Error adding email: ' + error.message)
-    } else {
-      setNewEmail('')
-      fetchWhitelist()
-    }
-    setLoading(false)
-  }
+  // Derived Metrics
+  const totalShops = stats.length
+  const totalProducts = stats.reduce((acc, curr) => acc + (parseInt(curr.product_count) || 0), 0)
+  const totalTransactions = stats.reduce((acc, curr) => acc + (parseInt(curr.transaction_count) || 0), 0)
+  
+  // Filter
+  const filteredStats = stats.filter(s => 
+    s.org_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    s.owner_email.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
-  const handleRemoveEmail = async (id) => {
-    if(!confirm('Are you sure?')) return
-    const { error } = await supabase.from('whitelist').delete().eq('id', id)
-    if (!error) fetchWhitelist()
-    else alert('Error removing email: ' + error.message)
+  if (loading) {
+     return (
+        <DashboardLayout>
+           <div className="h-[60vh] flex items-center justify-center">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+           </div>
+        </DashboardLayout>
+     )
   }
 
   if (error) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-          <div className="bg-destructive/10 p-4 rounded-xl text-destructive max-w-md text-center">
-            <h3 className="font-bold text-lg mb-2">Something went wrong</h3>
-            <p>{error}</p>
-          </div>
-          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg">
-            Retry
-          </button>
-        </div>
-      </DashboardLayout>
-    )
-  }
-
-  if (isAdmin === null) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-[60vh]">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-        </div>
-      </DashboardLayout>
-    )
-  }
-
-  if (isAdmin === false) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-[60vh] text-muted-foreground">
-          Access Denied. Admin only.
+        <div className="h-[60vh] flex flex-col items-center justify-center gap-4 text-center">
+           <ShieldAlert className="w-16 h-16 text-destructive/50" />
+           <div>
+             <h3 className="text-xl font-bold">Access Denied</h3>
+             <p className="text-muted-foreground max-w-md mx-auto mt-2">
+               {error.includes('Access Denied') 
+                 ? "You are not authorized to view the Platform Admin Dashboard."
+                 : error}
+             </p>
+           </div>
         </div>
       </DashboardLayout>
     )
@@ -117,77 +98,144 @@ export default function AdminDashboard() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-8 p-6">
         
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold">Client Management</h1>
-          <div className="text-sm text-muted-foreground">
-            Manage who can access the application
-          </div>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+           <div>
+             <h1 className="text-3xl font-bold tracking-tight">Platform Overview</h1>
+             <p className="text-muted-foreground mt-1">Monitor all shops and usage data.</p>
+           </div>
+           
+           <div className="bg-card border border-border rounded-lg p-1.5 flex items-center gap-2 w-full md:w-64">
+              <Search className="w-4 h-4 text-muted-foreground ml-2" />
+              <input 
+                type="text" 
+                placeholder="Search shops..." 
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="bg-transparent border-none outline-none text-sm w-full placeholder:text-muted-foreground"
+              />
+           </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {/* Add Form */}
-          <div className="md:col-span-1">
-            <div className="bg-card p-6 rounded-2xl border shadow-sm sticky top-6">
-              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <Plus className="w-5 h-5 text-blue-500"/> Add Client
-              </h2>
-              <form onSubmit={handleAddEmail} className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Client Email</label>
-                  <input 
-                    type="email" 
-                    required
-                    placeholder="client@example.com"
-                    className="w-full p-3 mt-1 rounded-xl border bg-background focus:ring-2 focus:ring-primary/20 outline-none"
-                    value={newEmail}
-                    onChange={e => setNewEmail(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    This email will be able to sign up immediately.
-                  </p>
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-card p-6 rounded-2xl border border-border shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
+                   <Building2 className="w-6 h-6" />
                 </div>
-                <button 
-                  disabled={loading} 
-                  className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90 disabled:opacity-50 transition-all"
-                >
-                  {loading ? 'Adding...' : 'Whiltelist Email'}
-                </button>
-              </form>
+                <div>
+                   <p className="text-sm font-medium text-muted-foreground">Total Shops</p>
+                   <h3 className="text-2xl font-bold">{totalShops}</h3>
+                </div>
             </div>
-          </div>
+            
+            <div className="bg-card p-6 rounded-2xl border border-border shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600">
+                   <ShoppingBag className="w-6 h-6" />
+                </div>
+                <div>
+                   <p className="text-sm font-medium text-muted-foreground">Total Products Tracked</p>
+                   <h3 className="text-2xl font-bold">{totalProducts.toLocaleString()}</h3>
+                </div>
+            </div>
 
-          {/* List */}
-          <div className="md:col-span-2">
-            <div className="bg-card p-6 rounded-2xl border shadow-sm">
-              <h2 className="text-lg font-bold mb-4">Whitelisted Clients ({whitelist.length})</h2>
-              <div className="space-y-2">
-                {whitelist.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-4 rounded-xl border bg-muted/20 hover:bg-muted/40 transition-colors group">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold text-xs">
-                          {item.email.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="font-mono text-sm">{item.email}</span>
-                      </div>
-                      <button 
-                      onClick={() => handleRemoveEmail(item.id)}
-                      className="p-2 hover:bg-red-100 text-muted-foreground hover:text-red-500 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                      title="Remove access"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                  </div>
-                ))}
-                {whitelist.length === 0 && (
-                  <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl">
-                    No emails in whitelist.
-                  </div>
-                )}
-              </div>
+            <div className="bg-card p-6 rounded-2xl border border-border shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600">
+                   <TrendingUp className="w-6 h-6" />
+                </div>
+                <div>
+                   <p className="text-sm font-medium text-muted-foreground">Total Transactions</p>
+                   <h3 className="text-2xl font-bold">{totalTransactions.toLocaleString()}</h3>
+                </div>
             </div>
-          </div>
+        </div>
+
+        {/* Table */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+           <div className="p-6 border-b border-border">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                 <Users className="w-5 h-5 text-primary" /> Active Organizations
+              </h3>
+           </div>
+           
+           <div className="overflow-x-auto">
+             <table className="w-full text-left text-sm">
+               <thead className="bg-muted/50 border-b border-border">
+                 <tr>
+                   <th className="p-4 font-semibold text-muted-foreground">Shop Details</th>
+                   <th className="p-4 font-semibold text-muted-foreground">Plan</th>
+                   <th className="p-4 font-semibold text-muted-foreground text-center">Usage (Products)</th>
+                   <th className="p-4 font-semibold text-muted-foreground text-center">Usage (Txns)</th>
+                   <th className="p-4 font-semibold text-muted-foreground">Last Active</th>
+                   <th className="p-4 font-semibold text-muted-foreground">Joined At</th>
+                 </tr>
+               </thead>
+               <tbody className="divide-y divide-border">
+                 {filteredStats.map((org) => (
+                   <tr key={org.org_id} className="hover:bg-muted/20 transition-colors">
+                     <td className="p-4">
+                        <div>
+                          <p className="font-bold text-foreground">{org.org_name}</p>
+                          <p className="text-xs text-muted-foreground font-mono mt-0.5">{org.owner_email}</p>
+                        </div>
+                     </td>
+                     <td className="p-4">
+                        <select 
+                          value={org.plan_key}
+                          onChange={(e) => handleUpdatePlan(org.org_id, e.target.value)}
+                          className={`text-xs font-medium rounded-full px-2 py-1 border-none outline-none cursor-pointer transition-colors ${
+                            org.plan_key === 'free' 
+                              ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                              : 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
+                          }`}
+                        >
+                           <option value="free">Free Experience</option>
+                           <option value="smart_shop">Smart Shop</option>
+                        </select>
+                     </td>
+                     <td className="p-4 text-center">
+                        <span className={`font-mono font-medium ${org.product_count > 50 && org.plan_key === 'free' ? 'text-red-500' : ''}`}>
+                          {org.product_count}
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-1">
+                          / {org.plan_key === 'free' ? '50' : '∞'}
+                        </span>
+                     </td>
+                     <td className="p-4 text-center">
+                        <span className="font-mono font-medium">
+                          {org.transaction_count}
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-1">
+                          / {org.plan_key === 'free' ? '50' : '∞'}
+                        </span>
+                     </td>
+                     <td className="p-4">
+                        {org.last_active_at ? (
+                            <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                                {formatDistanceToNow(new Date(org.last_active_at), { addSuffix: true })}
+                            </span>
+                        ) : (
+                            <span className="text-sm text-muted-foreground">Never</span>
+                        )}
+                     </td>
+                     <td className="p-4 text-muted-foreground text-xs">
+                        {format(new Date(org.created_at), 'dd MMM yyyy')}
+                     </td>
+                   </tr>
+                 ))}
+                 
+                 {filteredStats.length === 0 && (
+                    <tr>
+                       <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                          No shops found matching your search.
+                       </td>
+                    </tr>
+                 )}
+               </tbody>
+             </table>
+           </div>
         </div>
 
       </div>

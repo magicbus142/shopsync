@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Plus, Package, Download, Upload, Pencil, Trash2, Eye, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useOrganization } from '../../context/OrganizationContext'
 import * as XLSX from 'xlsx'
 import ConfirmationModal from '../../components/ui/ConfirmationModal'
 import Pagination from '../../components/ui/Pagination'
 
 export default function Inventory() {
+  const { currentOrg } = useOrganization()
   const [showAddForm, setShowAddForm] = useState(false)
   const [newProduct, setNewProduct] = useState({ name: '', sku: '', stock: '', minStock: '10', image: '', price: '' })
   const [editingId, setEditingId] = useState(null)
@@ -50,8 +52,8 @@ export default function Inventory() {
 
   // Start with loading products
   useEffect(() => {
-    fetchProducts()
-  }, [])
+    if (currentOrg) fetchProducts()
+  }, [currentOrg])
 
   const fetchProducts = async () => {
     setLoading(true)
@@ -139,7 +141,8 @@ export default function Inventory() {
       stock: product.stock,
       minStock: product.min_stock_level || 10,
       image: product.image_url || '',
-      price: product.price || ''
+      price: product.price || '',
+      buyingPrice: '' // For expense calculation
     })
     setEditingId(product.id)
     setShowAddForm(true)
@@ -169,7 +172,13 @@ export default function Inventory() {
        return
     }
 
+    if (!currentOrg) {
+        alert('No organization selected')
+        return
+    }
+
     const item = {
+       organization_id: currentOrg.id,
        user_id: userId,
        name: newProduct.name,
        sku: newProduct.sku,
@@ -194,8 +203,31 @@ export default function Inventory() {
                alert('Failed to update product')
                console.error(error)
             } else {
+                // Calculate stock difference and add expense
+                const oldStock = parseInt(product.stock)
+                const newStockVal = parseInt(newProduct.stock)
+                const stockDiff = newStockVal - oldStock
+                
+                if (stockDiff > 0 && newProduct.buyingPrice) {
+                    const cost = parseFloat(newProduct.buyingPrice)
+                    if (cost > 0) {
+                        const { error: txError } = await supabase.from('transactions').insert([{
+                            organization_id: currentOrg.id,
+                            user_id: userId,
+                            type: 'expense',
+                            amount: stockDiff * cost,
+                            category: 'Inventory',
+                            description: `Restock: ${stockDiff} units of ${newProduct.name}`,
+                            date: new Date().toISOString().split('T')[0],
+                            payment_status: 'Paid', // Assuming immediate payment for stock? Or Pending? Let's default to Paid for now as it's an expense entry.
+                            payment_method: 'Cash' // Default
+                        }])
+                        if (txError) console.error('Error adding expense:', txError)
+                    }
+                }
+
                 setShowAddForm(false)
-                setNewProduct({ name: '', sku: '', stock: '', minStock: '10', image: '', price: '' })
+                setNewProduct({ name: '', sku: '', stock: '', minStock: '10', image: '', price: '', buyingPrice: '' })
                 setEditingId(null)
                 fetchProducts() 
             }
@@ -206,8 +238,27 @@ export default function Inventory() {
                alert('Failed to add product')
                console.error(error)
             } else {
+                // Add Initial Expense
+                if (parseInt(newProduct.stock) > 0 && newProduct.buyingPrice) {
+                    const cost = parseFloat(newProduct.buyingPrice)
+                    if (cost > 0) {
+                        const { error: txError } = await supabase.from('transactions').insert([{
+                            organization_id: currentOrg.id,
+                            user_id: userId,
+                            type: 'expense',
+                            amount: parseInt(newProduct.stock) * cost,
+                            category: 'Inventory',
+                            description: `Initial Stock: ${newProduct.stock} units of ${newProduct.name}`,
+                            date: new Date().toISOString().split('T')[0],
+                            payment_status: 'Paid',
+                            payment_method: 'Cash'
+                        }])
+                        if (txError) console.error('Error adding expense:', txError)
+                    }
+                }
+
                 setShowAddForm(false)
-                setNewProduct({ name: '', sku: '', stock: '', minStock: '10', image: '', price: '' })
+                setNewProduct({ name: '', sku: '', stock: '', minStock: '10', image: '', price: '', buyingPrice: '' })
                 fetchProducts() 
             }
         }
@@ -445,13 +496,23 @@ export default function Inventory() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Price (₹)</label>
+                    <label className="text-sm font-medium">Selling Price (₹)</label>
                     <input 
                       type="number" 
                       className="w-full px-3 py-2 border border-input rounded-lg bg-background"
                       value={newProduct.price}
                       onChange={e => setNewProduct({...newProduct, price: e.target.value})}
                       placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Buying Price (₹) <span className="text-xs text-muted-foreground font-normal">(Expense)</span></label>
+                    <input 
+                      type="number" 
+                      className="w-full px-3 py-2 border border-input rounded-lg bg-background"
+                      value={newProduct.buyingPrice || ''}
+                      onChange={e => setNewProduct({...newProduct, buyingPrice: e.target.value})}
+                      placeholder="Per Unit Cost"
                     />
                   </div>
                 </div>
@@ -567,14 +628,14 @@ export default function Inventory() {
                 </button>
               </div>
 
-              <div className="p-0">
+               <div className="overflow-x-auto">
                   <table className="w-full text-sm text-left">
                       <thead className="bg-muted/50 text-muted-foreground font-medium sticky top-0">
                           <tr>
-                              <th className="px-6 py-3">Date</th>
-                              <th className="px-6 py-3">Field</th>
-                              <th className="px-6 py-3">Old Value</th>
-                              <th className="px-6 py-3">New Value</th>
+                              <th className="px-4 py-3 whitespace-nowrap">Date</th>
+                              <th className="px-4 py-3 whitespace-nowrap">Field</th>
+                              <th className="px-4 py-3 whitespace-nowrap">Old Value</th>
+                              <th className="px-4 py-3 whitespace-nowrap">New Value</th>
                           </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
@@ -587,18 +648,22 @@ export default function Inventory() {
                           ) : (
                               productHistory.map((h) => (
                                   <tr key={h.id} className="hover:bg-muted/20">
-                                      <td className="px-6 py-3 text-muted-foreground whitespace-nowrap">
-                                          {new Date(h.changed_at).toLocaleString()}
+                                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                                          {new Date(h.changed_at).toLocaleString('en-IN', { 
+                                              day: '2-digit', month: 'short', 
+                                              hour: '2-digit', minute: '2-digit'
+                                          })}
                                       </td>
-                                      <td className="px-6 py-3 font-medium capitalize">{h.field_changed.replace(/_/g, ' ')}</td>
-                                      <td className="px-6 py-3 text-red-500 line-through opacity-70">{String(h.old_value || '-')}</td>
-                                      <td className="px-6 py-3 text-green-600">{String(h.new_value || '-')}</td>
+                                      <td className="px-4 py-3 font-medium capitalize whitespace-nowrap">{h.field_changed.replace(/_/g, ' ')}</td>
+                                      <td className="px-4 py-3 text-red-500 line-through opacity-70 whitespace-nowrap">{String(h.old_value || '-')}</td>
+                                      <td className="px-4 py-3 text-green-600 whitespace-nowrap">{String(h.new_value || '-')}</td>
                                   </tr>
                               ))
                           )}
                       </tbody>
                   </table>
-              </div>
+               </div>
+
               
               <div className="p-4 border-t border-border bg-muted/10 text-right">
                   <button 

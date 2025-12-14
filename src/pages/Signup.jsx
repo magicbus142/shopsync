@@ -5,46 +5,25 @@ import { Loader2, Lock, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export default function Signup() {
-  const [step, setStep] = useState(1) // 1: Email Check, 2: Password
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  // Removed step state as we can do it all in one or just flow naturally. 
+  // Let's keep it simple: One form.
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
 
-  const handleCheckEmail = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    const trimmedEmail = email.trim()
-
-    // Basic format check
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(trimmedEmail)) {
-      setError('Invalid email format.')
-      setLoading(false)
-      return
-    }
-
-    // Check Whitelist
-    try {
-      const { data, error } = await supabase
-        .from('whitelist')
-        .select('email')
-        .eq('email', trimmedEmail)
-        .single()
-
-      if (error || !data) {
-        setError('This email has not been invited to join.')
-      } else {
-        setStep(2)
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        navigate('/dashboard')
       }
-    } catch (err) {
-      setError('Error checking invitation status.')
-    } finally {
-      setLoading(false)
     }
-  }
+    checkUser()
+  }, [navigate])
+
+
 
   const handleSignup = async (e) => {
     e.preventDefault()
@@ -110,19 +89,13 @@ export default function Signup() {
           
           <div className="text-center mb-10">
              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-xl mx-auto flex items-center justify-center mb-4">
-               {step === 1 ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8">
-                    <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.75 3c1.995 0 3.804 1.005 5.126 2.552a.75.75 0 01.077 0C14.446 4.005 16.255 3 18.25 3c3.036 0 5.5 2.322 5.5 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
-                  </svg>
-               ) : (
                   <CheckCircle2 className="w-8 h-8"/>
-               )}
              </div>
              <h2 className="text-2xl font-bold text-foreground">
-                {step === 1 ? 'Check Invitation' : 'Create Password'}
+                Create Account
              </h2>
              <p className="text-muted-foreground mt-2">
-                {step === 1 ? 'Enter your email to verify invite.' : 'Set up security for your account.'}
+                Join us today!
              </p>
           </div>
 
@@ -133,13 +106,11 @@ export default function Signup() {
           )}
 
           <AnimatePresence mode="wait">
-            {step === 1 && (
-              <motion.form 
-                key="step1"
-                initial={{ opacity: 0, x: -20 }}
+            <motion.form 
+                initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                onSubmit={handleCheckEmail} 
+                exit={{ opacity: 0, x: -20 }}
+                onSubmit={handleSignup} 
                 className="space-y-6"
               >
                   <div className="space-y-2">
@@ -160,33 +131,6 @@ export default function Signup() {
                         </svg>
                       </div>
                     </div>
-                  </div>
-                  
-                  <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full bg-[#5d7df3] hover:bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-blue-500/30 transition-all flex items-center justify-center transform active:scale-[0.98]"
-                  >
-                      {loading ? <Loader2 className="animate-spin h-5 w-5" /> : (
-                        <span className="flex items-center gap-2">Verify Email <ArrowRight className="w-4 h-4"/></span>
-                      )}
-                  </button>
-              </motion.form>
-            )}
-
-            {step === 2 && (
-              <motion.form 
-                key="step2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                onSubmit={handleSignup} 
-                className="space-y-6"
-              >
-                  {/* Read Only Email Display */}
-                  <div className="p-3 bg-muted/50 rounded-xl flex items-center justify-between">
-                    <span className="text-sm font-medium">{email}</span>
-                    <button type="button" onClick={() => setStep(1)} className="text-xs text-blue-500 font-semibold hover:underline">Change</button>
                   </div>
 
                   <div className="space-y-2">
@@ -218,10 +162,9 @@ export default function Signup() {
                       disabled={loading}
                       className="w-full bg-[#5d7df3] hover:bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-blue-500/30 transition-all flex items-center justify-center transform active:scale-[0.98]"
                   >
-                      {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Complete Sign Up'}
+                      {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Sign Up'}
                   </button>
               </motion.form>
-            )}
           </AnimatePresence>
           
           <div className="mt-8 flex items-center gap-4">

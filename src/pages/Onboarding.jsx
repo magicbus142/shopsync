@@ -53,7 +53,38 @@ export default function Onboarding() {
       
       if (!user) throw new Error('No authenticated user. Please login again.')
 
-      // Update Profile
+      // 1. Create Organization
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .insert([{
+            name: formData.shopName,
+            owner_id: user.id,
+            plan_key: 'free' // Default to free plan
+        }])
+        .select()
+        .single()
+
+      if (orgError) {
+          console.error("Error creating org:", orgError)
+          throw new Error("Failed to create organization.")
+      }
+
+      // 2. Add User as Owner to Organization Members (if trigger doesn't do it automatically, wait, we didn't add trigger for that)
+      // Our previous logic was manual insert.
+      const { error: memberError } = await supabase
+        .from('organization_members')
+        .insert([{
+            organization_id: org.id,
+            user_id: user.id,
+            role: 'owner'
+        }])
+
+      if (memberError) {
+           console.error("Error adding member:", memberError)
+           // Continue anyway as profile update is next, but warn?
+      }
+
+      // 3. Update Profile
       const { error } = await supabase
         .from('profiles')
         .upsert({
@@ -70,7 +101,10 @@ export default function Onboarding() {
       if (error) throw error
 
       // Success
+      // Force reload or just navigate? OrganizationProvider might need a refresh.
+      // Easiest is to window.location.reload() or let Context handle it on mount of Dashboard
       navigate('/dashboard')
+      window.location.reload() // Ensure context picks up new org
     } catch (error) {
       console.error('Onboarding Error:', error)
       alert(`Failed to save profile: ${error.message || error.error_description || 'Unknown error'}`)

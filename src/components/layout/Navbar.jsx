@@ -31,9 +31,9 @@ export default function Navbar() {
             <a href="#features" className="text-muted-foreground hover:text-primary transition-colors font-medium">
               Features
             </a>
-            <a href="#how-it-works" className="text-muted-foreground hover:text-primary transition-colors font-medium">
-              How it Works
-            </a>
+            {/* <a href="#pricing" className="text-muted-foreground hover:text-primary transition-colors font-medium">
+              Pricing
+            </a> */}
             <div className="flex items-center space-x-4">
               <button
                 onClick={toggleTheme}

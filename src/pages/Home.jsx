@@ -1,12 +1,26 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
+import React, { useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, Sparkles } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
 import HeroAnimation from '../components/features/HeroAnimation'
 import FeaturesBento from '../components/features/FeaturesBento'
+import Pricing from '../components/features/Pricing'
 
 export default function Home() {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        navigate('/dashboard')
+      }
+    }
+    checkUser()
+  }, [navigate])
+
   return (
     <div className="min-h-screen bg-background font-sans selection:bg-primary/20 selection:text-primary transition-colors duration-300">
       <Navbar />
@@ -57,21 +71,29 @@ export default function Home() {
       </section>
 
       {/* Features Section (Bento Grid) */}
-      <FeaturesBento />
+      <div id="features">
+        <FeaturesBento />
+      </div>
+
+      {/* Pricing Section - Hidden for now to target small shops
+      <div id="pricing">
+        <Pricing />
+      </div>
+      */}
 
       {/* CTA Section */}
-      <section className="py-24 bg-zinc-950 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary via-black to-black"></div>
+      <section className="py-24 bg-muted/50 border-t border-border relative overflow-hidden">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-primary/10 via-background to-background opacity-50"></div>
         <div className="max-w-4xl mx-auto px-4 relative text-center">
-          <h2 className="text-3xl md:text-5xl font-bold text-white mb-8">Ready to transform your business?</h2>
-          <p className="text-xl text-zinc-400 mb-10">
+          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-8">Ready to transform your business?</h2>
+          <p className="text-xl text-muted-foreground mb-10">
             Join thousands of small business owners who are making smarter decisions with ShopSync. 
             No credit card required for trial.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
              <Link 
                 to="/signup" 
-                className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold rounded-xl text-black bg-white hover:bg-zinc-50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1"
+                className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold rounded-xl text-primary-foreground bg-primary hover:bg-primary/90 transition-all shadow-lg hover:shadow-primary/20 hover:-translate-y-1"
               >
                 Get Started Now
               </Link>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, X, Phone, Search, IndianRupee, FileText, Download, Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useOrganization } from '../../context/OrganizationContext'
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns'
 import * as XLSX from 'xlsx'
 import DateRangePicker from '../../components/ui/DateRangePicker'
@@ -10,6 +11,7 @@ import Pagination from '../../components/ui/Pagination'
 import { useToast } from '../../context/ToastContext'
 
 export default function Workers() {
+  const { currentOrg } = useOrganization()
   const { success, error: toastError } = useToast()
   const [workers, setWorkers] = useState([])
   const [transactions, setTransactions] = useState([])
@@ -81,13 +83,14 @@ export default function Workers() {
   const [payData, setPayData] = useState({ amount: '', date: new Date().toISOString().split('T')[0] })
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (currentOrg) fetchData()
+  }, [currentOrg])
 
   const fetchData = async () => {
+    if (!currentOrg) return
     setLoading(true)
-    const { data: workersData } = await supabase.from('workers').select('*').order('created_at', { ascending: false })
-    const { data: transData } = await supabase.from('transactions').select('*').not('worker_id', 'is', null)
+    const { data: workersData } = await supabase.from('workers').select('*').eq('organization_id', currentOrg.id).order('created_at', { ascending: false })
+    const { data: transData } = await supabase.from('transactions').select('*').eq('organization_id', currentOrg.id).not('worker_id', 'is', null).order('created_at', { ascending: false })
     setWorkers(workersData || [])
     setTransactions(transData || [])
     setLoading(false)
@@ -160,6 +163,7 @@ export default function Workers() {
 
     const item = {
       ...formData,
+      organization_id: currentOrg.id,
       salary: formData.salary ? parseFloat(formData.salary) : 0,
       image_url: formData.image_url || null,
       user_id: userId
@@ -218,6 +222,7 @@ export default function Workers() {
     }
 
     const payload = {
+      organization_id: currentOrg.id,
       user_id: userId,
       type: 'expense',
       category: 'Salary',
@@ -597,7 +602,7 @@ export default function Workers() {
                           <tbody className="divide-y divide-border">
                               {transactions
                                   .filter(t => t.worker_id === selectedWorker.id)
-                                  .sort((a, b) => new Date(b.date) - new Date(a.date))
+                                  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
                                   .map((t) => (
                                   <tr key={t.id} className="hover:bg-muted/30">
                                       <td className="px-6 py-3">{format(new Date(t.date), 'dd MMM yyyy')}</td>
