@@ -32,7 +32,7 @@ export default function DashboardLayout({ children }) {
           if (profile?.shop_name) setShopName(profile.shop_name)
           
           // 2. Check Admin Status (Simple Email Check)
-          const ADMIN_EMAILS = ['swamy@magicbus142.com', 'gangabhavani@gmail.com', 'baba@gmail.com']
+          const ADMIN_EMAILS = ['swamy@magicbus142.com']
           setIsAdmin(ADMIN_EMAILS.includes(user.email))
         }
       } catch (error) {

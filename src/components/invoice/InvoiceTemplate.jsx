@@ -8,7 +8,8 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
     customer, items, invoiceDate, invoiceNumber, subtotal, 
     total, payments = [], totalPaid = 0, balanceDue = 0, 
     showSignature, signatureImage, companyDetails, 
-    showTerms, paymentDetails, showLogo, logoImage 
+    showTerms, paymentDetails, showLogo, logoImage,
+    watermarkText, watermarkSize = 80
   } = data;
 
   // Safe Inline Styles for PDF Generation (avoiding Tailwind classes)
@@ -103,7 +104,7 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%) rotate(-45deg)',
-        fontSize: '80px', // Massive font size
+        fontSize: `${watermarkSize}px`, // Dynamic Size
         fontWeight: 'bold',
         color: '#9ca3af', // Gray-400 equivalent
         opacity: '0.1',   // Very faint
@@ -119,7 +120,7 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
     <div ref={ref} style={styles.container}>
       {/* Watermark */}
       <div style={styles.watermark}>
-          {companyDetails?.name || 'COMPANY NAME'}
+          {watermarkText || companyDetails?.name || 'COMPANY NAME'}
       </div>
       
       {/* Header */}

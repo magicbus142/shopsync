@@ -92,7 +92,7 @@ export default function Transactions() {
         fetchProducts()
         fetchWorkers()
     }
-  }, [currentOrg])
+  }, [currentOrg?.id])
 
   const fetchTransactions = async () => {
     if (!currentOrg) return

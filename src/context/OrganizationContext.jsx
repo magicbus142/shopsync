@@ -33,10 +33,12 @@ export const OrganizationProvider = ({ children }) => {
       if (error) throw error;
 
       // Extract organizations from the response
-      const orgs = data.map(item => ({
-        ...item.organization,
-        role: item.role
-      }));
+      const orgs = data
+        .filter(item => item.organization) // Filter out null orgs
+        .map(item => ({
+          ...item.organization,
+          role: item.role
+        }));
 
       setOrganizations(orgs);
 

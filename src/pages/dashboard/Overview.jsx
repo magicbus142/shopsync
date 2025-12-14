@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Wallet, Package, Users, Clock, AlertCircle, CheckCircle } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, LabelList } from 'recharts'
 import { supabase } from '../../lib/supabase'
+import { useOrganization } from '../../context/OrganizationContext'
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO, eachDayOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { Link } from 'react-router-dom'
 import DateRangePicker from '../../components/ui/DateRangePicker'
@@ -10,7 +11,9 @@ import DateRangePicker from '../../components/ui/DateRangePicker'
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8']
 
 export default function Overview() {
-  const [loading, setLoading] = useState(true)
+  const { currentOrg, loading: orgLoading } = useOrganization() // 1. Use Context
+  const [dataLoading, setDataLoading] = useState(true)
+  const loading = orgLoading || (currentOrg && dataLoading)
   const [data, setData] = useState({
     totalIncome: 0,
     totalExpenses: 0,
@@ -64,14 +67,19 @@ export default function Overview() {
   }
 
   useEffect(() => {
-    fetchData()
-  }, [dateRange])
+    if (currentOrg) fetchData()
+  }, [dateRange, currentOrg])
 
   const fetchData = async () => {
-    setLoading(true)
+    if (!currentOrg) return;
+    setDataLoading(true)
     
     // 1. Fetch Transactions
-    let query = supabase.from('transactions').select('*').order('date', { ascending: true })
+    let query = supabase
+      .from('transactions')
+      .select('*')
+      .eq('organization_id', currentOrg.id) // Filter by Org
+      .order('date', { ascending: true })
     
     // Apply Date Filter to Query (optimization)
     if (dateRange.from && dateRange.to) {
@@ -81,20 +89,28 @@ export default function Overview() {
     const { data: transactions, error } = await query
     
     // 2. Fetch Products (for Inventory Stats)
-    const { data: products } = await supabase.from('products').select('*').order('stock', { ascending: true })
+    const { data: products } = await supabase
+      .from('products')
+      .select('*')
+      .eq('organization_id', currentOrg.id) // Filter by Org
+      .order('stock', { ascending: true })
 
     // 3. Fetch Workers (for Worker Stats)
-    const { data: workers } = await supabase.from('workers').select('*')
+    const { data: workers } = await supabase
+      .from('workers')
+      .select('*')
+      .eq('organization_id', currentOrg.id) // Filter by Org
 
     // 4. Fetch Pending (Separate from date filter)
     const { data: pendingT } = await supabase
         .from('transactions')
         .select('*')
+        .eq('organization_id', currentOrg.id) // Filter by Org
         .or('payment_status.eq.Pending,payment_status.eq.Partial')
         .order('date', { ascending: true }) // Oldest due first
         .limit(6) // Top 6
 
-    if (error) { console.error(error); setLoading(false); return }
+    if (error) { console.error(error); setDataLoading(false); return }
 
     // 4. Process KPI Data & Product Revenue
     const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0)
@@ -207,7 +223,19 @@ export default function Overview() {
       workersCount: workers?.length || 0,
       pendingPayments: pendingT || []
     })
-    setLoading(false)
+    setDataLoading(false)
+  }
+
+  if (!loading && !currentOrg) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[80vh] text-center">
+        <h2 className="text-2xl font-bold mb-2">No Organization Found</h2>
+        <p className="text-muted-foreground mb-4">You generally shouldn't see this. Try refreshing or contacting support.</p>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg">
+          Refresh Page
+        </button>
+      </div>
+    )
   }
 
   return (

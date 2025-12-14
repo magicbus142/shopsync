@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useReactToPrint } from 'react-to-print'
-import { Plus, Trash2, Printer, Save, Download, FileText, ShoppingBag, Upload, User, Phone, MapPin, Calendar, Hash, CreditCard, Store } from 'lucide-react'
+import { Plus, Trash2, Printer, Save, Download, FileText, ShoppingBag, Upload, User, Phone, MapPin, Calendar, Hash, CreditCard, Store, Smartphone, Monitor } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { format } from 'date-fns'
@@ -9,6 +9,7 @@ import { useToast } from '../../context/ToastContext'
 import { useOrganization } from '../../context/OrganizationContext'
 import Switch from '../../components/ui/Switch'
 import html2pdf from 'html2pdf.js'
+import { AccordionItem } from '../../components/ui/Accordion'
 
 export default function InvoiceGenerator() {
   const [loading, setLoading] = useState(true)
@@ -16,6 +17,59 @@ export default function InvoiceGenerator() {
   const componentRef = useRef()
   const toast = useToast()
   const { currentOrg } = useOrganization()
+
+  // UI State
+  const [openSections, setOpenSections] = useState(['items', 'payments']) 
+  const [autoScale, setAutoScale] = useState(true)
+  const [scale, setScale] = useState(1)
+  const containerRef = useRef(null)
+
+  // Auto-Scaling Logic
+  useEffect(() => {
+    if (!autoScale || !containerRef.current) {
+        if (!autoScale) setScale(1)
+        return
+    }
+
+    const calculateScale = () => {
+        const container = containerRef.current
+        if (!container) return
+
+        const padding = 64 // 32px padding on each side
+        const availableWidth = container.clientWidth - padding
+        const availableHeight = container.clientHeight - padding
+        
+        const invoiceWidth = 794 // A4 width at 96 DPI approx (210mm)
+        const invoiceHeight = 1123 // A4 height at 96 DPI approx (297mm)
+
+        // Calculate scale to fit width (most important)
+        let newScale = availableWidth / invoiceWidth
+        
+        // Ensure it also fits height if needed to prevent vertical scrolling
+        newScale = Math.min(newScale, availableHeight / invoiceHeight)
+
+        // Clamp scale
+        newScale = Math.min(Math.max(newScale, 0.3), 1.0) 
+        
+        setScale(newScale)
+    }
+
+    calculateScale()
+    
+    // Resize Observer for robust responsiveness
+    const observer = new ResizeObserver(calculateScale)
+    observer.observe(containerRef.current)
+
+    return () => observer.disconnect()
+  }, [autoScale])
+
+  const toggleSection = (section) => {
+      setOpenSections(prev => 
+          prev.includes(section) 
+              ? prev.filter(s => s !== section) 
+              : [...prev, section]
+      )
+  }
 
   // Invoice State
   const [invoiceDate, setInvoiceDate] = useState(format(new Date(), 'yyyy-MM-dd'))
@@ -34,6 +88,10 @@ export default function InvoiceGenerator() {
   const [showSignature, setShowSignature] = useState(true)
   const [signatureImage, setSignatureImage] = useState(null)
   
+  // Watermark State
+  const [watermarkText, setWatermarkText] = useState('')
+  const [watermarkSize, setWatermarkSize] = useState(80)
+
   // Customization State
   const [showTerms, setShowTerms] = useState(true)
   const [showLogo, setShowLogo] = useState(true) // New State
@@ -66,6 +124,8 @@ export default function InvoiceGenerator() {
           setPaymentDetails(parsed.paymentDetails || paymentDetails)
           setShowLogo(parsed.showLogo ?? true)
           setLogoImage(parsed.logoImage || null)
+          setWatermarkText(parsed.watermarkText || '')
+          setWatermarkSize(parsed.watermarkSize || 80)
       } else {
           // No saved defaults for this org, initialize with Org Name
           setCompanyDetails({
@@ -76,6 +136,8 @@ export default function InvoiceGenerator() {
           })
           setSignatureImage(null) // Reset signature for new org
           setLogoImage(null) // Reset logo for new org
+          setWatermarkText('')
+          setWatermarkSize(80)
       }
   }, [currentOrg])
 
@@ -90,7 +152,9 @@ export default function InvoiceGenerator() {
           showTerms,
           paymentDetails,
           showLogo,
-          logoImage
+          logoImage,
+          watermarkText,
+          watermarkSize
       }))
       toast.success('Default settings saved!')
   }
@@ -121,7 +185,12 @@ export default function InvoiceGenerator() {
 
   // Handlers
   const handleAddItem = () => {
-     setItems([...items, { id: Date.now(), date: invoiceDate, name: '', quantity: 1, price: 0 }])
+     const newItems = [...items, { id: Date.now(), date: invoiceDate, name: '', quantity: 1, price: 0 }]
+     setItems(newItems)
+     // Ensure both Items and Payments sections are open when adding items
+     if (!openSections.includes('payments')) {
+         setOpenSections(prev => [...prev, 'payments'])
+     }
   }
 
   const handleAddPayment = () => {
@@ -207,462 +276,318 @@ export default function InvoiceGenerator() {
      showTerms,
      paymentDetails,
      showLogo,
-     logoImage
+     logoImage,
+     watermarkText,
+     watermarkSize
   };
 
   return (
-    <div className="flex flex-col xl:flex-row h-[calc(100vh-2rem)] gap-6">
-       {/* LEFT: FORM SECTION */}
-       <div className="w-full xl:w-5/12 flex flex-col gap-6 overflow-y-auto pr-2 pb-20">
-           <div className="bg-card border border-border rounded-xl p-6 shadow-sm relative group">
-             <div className="flex justify-between items-start mb-4">
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-primary" /> Company Details
-                </h2>
-                <button 
+    <div className="flex flex-col xl:flex-row h-[calc(100vh-6rem)] gap-6">
+       
+       {/* LEFT: EDITOR SECTION (Scrollable) */}
+       <div className="w-full xl:w-[450px] flex flex-col h-full bg-background rounded-2xl border border-border overflow-hidden shadow-sm">
+           
+           {/* Header */}
+           <div className="p-4 border-b border-border bg-muted/20 flex justify-between items-center">
+               <h2 className="font-bold text-lg">Invoice Structure</h2>
+               <button 
                   onClick={saveDefaults}
-                  className="text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-2 py-1 rounded border border-border"
-                  title="Save as default for future invoices"
+                  className="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-lg font-medium transition-colors"
                 >
-                   Save as Default
+                   Save Defaults
                 </button>
-             </div>
-             
-             {/* Logo Upload Section */}
-             <div className="mb-4 p-4 bg-muted/30 rounded-xl border border-border">
-                 <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-semibold flex items-center gap-2">
-                       <ShoppingBag className="w-4 h-4 text-primary" /> Company Logo
-                    </span>
-                    <Switch 
-                      checked={showLogo} 
-                      onChange={setShowLogo}
-                    />
-                 </div>
-                 {showLogo && (
-                     <div className="flex items-center gap-3">
-                        <div className="relative w-12 h-12 bg-white rounded border border-input flex items-center justify-center overflow-hidden">
-                            {logoImage ? (
-                                <img src={logoImage} alt="Logo" className="w-full h-full object-contain" />
-                            ) : (
-                                <ShoppingBag className="w-5 h-5 text-gray-300" />
-                            )}
-                        </div>
-                        <label className="flex-1 cursor-pointer">
-                            <span className="text-xs bg-white border border-input px-3 py-1.5 rounded hover:bg-gray-50 inline-block text-center w-full">
-                                {logoImage ? 'Change Logo' : 'Upload Logo'}
-                            </span>
-                            <input 
-                              type="file" 
-                              accept="image/*" 
-                              className="hidden" 
-                              onChange={(e) => {
-                                  const file = e.target.files[0]
-                                  if (file) {
-                                      const reader = new FileReader()
-                                      reader.onloadend = () => setLogoImage(reader.result)
-                                      reader.readAsDataURL(file)
-                                  }
-                              }}
-                            />
-                        </label>
-                        {logoImage && (
-                            <button onClick={() => setLogoImage(null)} className="text-red-500 hover:bg-red-50 p-1.5 rounded border border-transparent hover:border-red-100">
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        )}
+           </div>
+
+           {/* Content List */}
+           <div className="flex-1 overflow-y-auto p-4 space-y-4">
+               
+               {/* 1. Header & Company */}
+               <AccordionItem 
+                 title="Header & Company" 
+                 icon={Store} 
+                 isOpen={openSections.includes('header')} 
+                 onToggle={() => toggleSection('header')}
+               >
+                 <div className="space-y-4">
+                     {/* Logo Toggle */}
+                     <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                        <span className="text-sm font-medium">Show Logo</span>
+                        <Switch checked={showLogo} onChange={setShowLogo} />
                      </div>
-                 )}
-             </div>
-
-             <div className="space-y-4">
-                 <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">Shop Name</label>
-                    <div className="relative">
-                        <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input 
-                          type="text" 
-                          value={companyDetails.name} 
-                          onChange={(e) => setCompanyDetails({...companyDetails, name: e.target.value})}
-                          className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                          placeholder="My Awesome Shop"
-                        />
-                    </div>
-                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                     <div>
-                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">Phone</label>
-                        <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <input 
-                              type="text" 
-                              value={companyDetails.phone} 
-                              onChange={(e) => setCompanyDetails({...companyDetails, phone: e.target.value})}
-                              className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                              placeholder="+91 00000 00000"
-                            />
-                        </div>
-                     </div>
-                     <div>
-                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">Address</label>
-                        <div className="relative">
-                            <MapPin className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                            <textarea 
-                              value={companyDetails.address} 
-                              onChange={(e) => setCompanyDetails({...companyDetails, address: e.target.value})}
-                              rows={1}
-                              className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none min-h-[42px]"
-                              placeholder="Shop Address..."
-                            />
-                        </div>
-                     </div>
-                 </div>
-             </div>
-          </div>
-
-          <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" /> Invoice Details
-             </h2>
-             
-             <div className="grid grid-cols-2 gap-4 mb-6">
-                 <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">Invoice No</label>
-                    <div className="relative">
-                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input 
-                          type="text" 
-                          value={invoiceNumber} 
-                          onChange={(e) => setInvoiceNumber(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono text-sm"
-                        />
-                    </div>
-                 </div>
-                 <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">Date</label>
-                    <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input 
-                          type="date" 
-                          value={invoiceDate} 
-                          onChange={(e) => setInvoiceDate(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
-                        />
-                    </div>
-                 </div>
-             </div>
-
-             <div className="space-y-4 mb-6 pt-4 border-t border-dashed border-border">
-                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <User className="w-4 h-4 text-primary" /> Billed To
-                 </h3>
-                 <div>
-                    <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input 
-                          type="text" 
-                          value={customer.name} 
-                          onChange={(e) => setCustomer({...customer, name: e.target.value})}
-                          placeholder="Customer Name"
-                          className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
-                        />
-                    </div>
-                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input 
-                          type="text" 
-                          value={customer.phone} 
-                          onChange={(e) => setCustomer({...customer, phone: e.target.value})}
-                          placeholder="Phone Number"
-                          className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                        />
-                    </div>
-                    <div className="relative">
-                        <MapPin className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                        <textarea 
-                          value={customer.address} 
-                          onChange={(e) => setCustomer({...customer, address: e.target.value})}
-                          placeholder="Billing Address..."
-                          rows={1}
-                          className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none min-h-[42px]"
-                        />
-                    </div>
-                 </div>
-             </div>
-
-             <div className="space-y-4 mb-6">
-                 <div>
-                    <label className="block text-sm font-medium mb-1">Customer Name</label>
-                    <input 
-                      type="text" 
-                      value={customer.name} 
-                      onChange={(e) => setCustomer({...customer, name: e.target.value})}
-                      placeholder="Enter customer name"
-                      className="w-full px-3 py-2 rounded-lg border border-input bg-background"
-                    />
-                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Phone</label>
-                        <input 
-                          type="text" 
-                          value={customer.phone} 
-                          onChange={(e) => setCustomer({...customer, phone: e.target.value})}
-                          placeholder="Phone number"
-                          className="w-full px-3 py-2 rounded-lg border border-input bg-background"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Address</label>
-                        <textarea 
-                          value={customer.address} 
-                          onChange={(e) => setCustomer({...customer, address: e.target.value})}
-                          placeholder="Billing address"
-                          rows={1}
-                          className="w-full px-3 py-2 rounded-lg border border-input bg-background resize-none"
-                        />
-                    </div>
-                 </div>
-             </div>
-          </div>
-
-          <div className="bg-card border border-border rounded-xl p-6 shadow-sm flex-1">
-             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Items</h2>
-                <button 
-                  onClick={handleAddItem}
-                  className="p-2 bg-primary/10 text-primary hover:bg-primary/20 rounded-full transition-colors"
-                  title="Add Item"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-             </div>
-
-             <div className="space-y-3">
-                 {items.map((item, index) => (
-                    <div key={item.id} className="relative p-4 rounded-xl bg-muted/30 border border-border group hover:border-primary/50 transition-colors">
-                        <button 
-                          onClick={() => handleRemoveItem(item.id)}
-                          className={`absolute -top-2 -right-2 p-1.5 bg-red-100 text-red-600 rounded-full shadow-sm hover:bg-red-200 transition-all z-10 ${items.length === 1 ? 'hidden' : 'opacity-0 group-hover:opacity-100'}`}
-                        >
-                           <Trash2 className="w-3 h-3" />
-                        </button>
-                        
-                        <div className="grid grid-cols-12 gap-3">
-                            <div className="col-span-4">
-                                <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Date</label>
-                                <input 
-                                  type="date" 
-                                  value={item.date || ''} 
-                                  onChange={(e) => handleItemChange(item.id, 'date', e.target.value)}
-                                  className="w-full px-2 py-1.5 rounded-lg border border-input bg-background/50 focus:bg-background text-xs"
-                                />
+                     
+                     {showLogo && (
+                         <div className="flex items-center gap-3">
+                            <div className="w-16 h-16 bg-white border border-border rounded-lg flex items-center justify-center p-1">
+                                {logoImage ? <img src={logoImage} className="max-w-full max-h-full object-contain" /> : <ShoppingBag className="text-muted-foreground/30" />}
                             </div>
-                            <div className="col-span-8">
-                                <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Item Description</label>
-                                <input 
-                                  list={`products-${item.id}`}
-                                  type="text" 
-                                  value={item.name} 
-                                  onChange={(e) => handleItemChange(item.id, 'name', e.target.value)}
-                                  placeholder="Item Name"
-                                  className="w-full px-2 py-1.5 rounded-lg border border-input bg-background/50 focus:bg-background text-sm font-medium"
-                                />
-                                <datalist id={`products-${item.id}`}>
-                                    {products.map(p => (
-                                        <option key={p.id} value={p.name}>₹{p.price} (Stock: {p.stock})</option>
-                                    ))}
-                                </datalist>
-                            </div>
-                            
-                            <div className="col-span-3">
-                                <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Qty</label>
-                                <input 
-                                  type="number" 
-                                  value={item.quantity} 
-                                  onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
-                                  min="1"
-                                  className="w-full px-2 py-1.5 rounded-lg border border-input bg-background/50 focus:bg-background text-sm text-center font-mono"
-                                />
-                            </div>
-                            <div className="col-span-4">
-                                <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Price</label>
-                                <input 
-                                  type="number" 
-                                  value={item.price} 
-                                  onChange={(e) => handleItemChange(item.id, 'price', e.target.value)}
-                                  placeholder="0.00"
-                                  className="w-full px-2 py-1.5 rounded-lg border border-input bg-background/50 focus:bg-background text-sm text-right font-mono"
-                                />
-                            </div>
-                             <div className="col-span-5 flex flex-col justify-end items-end pb-1">
-                                <span className="text-[10px] text-muted-foreground uppercase font-bold mb-0.5">Amount</span>
-                                <span className="text-sm font-bold text-primary">₹{(item.quantity * item.price).toLocaleString()}</span>
-                            </div>
-                        </div>
-                    </div>
-                 ))}
-             </div>
-
-             <div className="mt-6 pt-4 border-t border-border space-y-3">
-                 <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Subtotal</span>
-                    <span className="font-bold">₹{total.toLocaleString()}</span>
-                 </div>
-                 
-                 {/* Payments Section */}
-                 <div className="border-t border-dashed border-border pt-2">
-                     <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium">Payments</span>
-                        <button onClick={handleAddPayment} className="text-xs text-primary hover:underline">+ Add Payment</button>
-                     </div>
-                     <div className="space-y-2">
-                         {payments.map(p => (
-                             <div key={p.id} className="flex gap-2 items-center">
-                                 <input 
-                                   type="date" 
-                                   value={p.date} 
-                                   onChange={(e) => handlePaymentChange(p.id, 'date', e.target.value)}
-                                   className="w-28 px-2 py-1 text-xs rounded border border-input"
-                                 />
-                                 <input 
-                                   type="number" 
-                                   value={p.amount} 
-                                   onChange={(e) => handlePaymentChange(p.id, 'amount', e.target.value)}
-                                   placeholder="Amount"
-                                   className="flex-1 px-2 py-1 text-xs rounded border border-input text-right"
-                                 />
-                                 <button onClick={() => handleRemovePayment(p.id)} className="text-red-500 hover:text-red-700">
-                                     <Trash2 className="w-3 h-3" />
-                                 </button>
-                             </div>
-                         ))}
-                     </div>
-                 </div>
-
-                 <div className="flex justify-between items-center border-t border-dashed border-border pt-2">
-                     <span className="text-sm font-medium">Total Paid</span>
-                     <span className="font-bold text-green-600">₹{totalPaid.toLocaleString()}</span>
-                 </div>
-
-                 <div className="flex justify-between items-center border-t border-gray-800 pt-2">
-                     <span className="text-base font-bold text-primary">Balance Due</span>
-                     <span className="text-xl font-bold text-primary">₹{balanceDue.toLocaleString()}</span>
-                 </div>
-             </div>
-
-             {/* Signature Settings */}
-             <div className="mt-6 pt-4 border-t border-border">
-                <div className="flex items-center justify-between mb-4">
-                   <span className="text-sm font-medium">Authorized Signatory</span>
-                   <Switch 
-                     checked={showSignature} 
-                     onChange={setShowSignature}
-                   />
-                </div>
-                {showSignature && (
-                    <div className="flex items-center gap-3">
-                        <label className="text-xs bg-muted px-3 py-2 rounded cursor-pointer hover:bg-muted/80 w-full text-center border border-dashed border-border">
-                            {signatureImage ? 'Change Signature Image' : 'Upload Signature Image'}
-                            <input 
-                              type="file" 
-                              accept="image/*" 
-                              className="hidden" 
-                              onChange={(e) => {
-                                  const file = e.target.files[0]
-                                  if (file) {
-                                      const reader = new FileReader()
-                                      reader.onloadend = () => setSignatureImage(reader.result)
-                                      reader.readAsDataURL(file)
-                                  }
-                              }}
-                            />
-                        </label>
-                        {signatureImage && (
-                            <button onClick={() => setSignatureImage(null)} className="p-2 hover:bg-red-50 text-red-500 rounded">
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        )}
-                    </div>
-                )}
-             </div>
-
-             {/* Footer Customization */}
-             <div className="mt-6 pt-4 border-t border-border space-y-4">
-                 <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Show Terms & Conditions</span>
-                    <Switch 
-                      checked={showTerms} 
-                      onChange={setShowTerms}
-                    />
-                 </div>
-                 
-                 <div className="pt-2 border-t border-dashed border-border">
-                     <div className="flex items-center justify-between mb-4">
-                        <span className="text-sm font-medium">Show Payment QR / Info</span>
-                        <Switch 
-                          checked={paymentDetails.show} 
-                          onChange={(c) => setPaymentDetails({...paymentDetails, show: c})}
-                        />
-                     </div>
-                     {paymentDetails.show && (
-                         <div className="space-y-2 pl-6">
-                             <input 
-                               type="text" 
-                               value={paymentDetails.phonePe} 
-                               onChange={(e) => setPaymentDetails({...paymentDetails, phonePe: e.target.value})}
-                               placeholder="PhonePe Number"
-                               className="w-full px-2 py-1 text-sm rounded border border-input"
-                             />
-                             <input 
-                               type="text" 
-                               value={paymentDetails.googlePay} 
-                               onChange={(e) => setPaymentDetails({...paymentDetails, googlePay: e.target.value})}
-                               placeholder="Google Pay Number"
-                               className="w-full px-2 py-1 text-sm rounded border border-input"
-                             />
-                             <input 
-                               type="text" 
-                               value={paymentDetails.upiId} 
-                               onChange={(e) => setPaymentDetails({...paymentDetails, upiId: e.target.value})}
-                               placeholder="UPI ID (e.g. name@okhdfcbank)"
-                               className="w-full px-2 py-1 text-sm rounded border border-input"
-                             />
+                            <label className="flex-1 text-sm bg-primary text-primary-foreground px-4 py-2 rounded-lg cursor-pointer hover:bg-primary/90 text-center transition-colors">
+                                Upload Logo
+                                <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                                      const file = e.target.files[0]
+                                      if (file) {
+                                          const reader = new FileReader()
+                                          reader.onloadend = () => setLogoImage(reader.result)
+                                          reader.readAsDataURL(file)
+                                      }
+                                }} />
+                            </label>
                          </div>
                      )}
+
+                     <div className="space-y-3">
+                        <input type="text" value={companyDetails.name} onChange={e => setCompanyDetails({...companyDetails, name: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Shop Name" />
+                        <input type="text" value={companyDetails.phone} onChange={e => setCompanyDetails({...companyDetails, phone: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Phone Number" />
+                        <textarea value={companyDetails.address} onChange={e => setCompanyDetails({...companyDetails, address: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Shop Address" rows={2} />
+                     </div>
                  </div>
-             </div>
-          </div>
+               </AccordionItem>
+
+               {/* Watermark Section */}
+               <AccordionItem 
+                 title="Watermark Settings" 
+                 icon={FileText} // Reusing FileText or specialized icon
+                 isOpen={openSections.includes('watermark')} 
+                 onToggle={() => toggleSection('watermark')}
+               >
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-xs text-muted-foreground uppercase font-bold mb-1 block">Watermark Text</label>
+                            <input 
+                              type="text" 
+                              value={watermarkText} 
+                              onChange={(e) => setWatermarkText(e.target.value)} 
+                              placeholder="e.g. DRAFT or PAID"
+                              className="w-full p-2 rounded-md border border-input text-sm" 
+                            />
+                            <p className="text-[10px] text-muted-foreground mt-1">Leave empty to use Company Name</p>
+                        </div>
+                        <div>
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="text-xs text-muted-foreground uppercase font-bold">Font Size</label>
+                                <span className="text-xs font-mono">{watermarkSize}px</span>
+                            </div>
+                            <input 
+                              type="range" 
+                              min="20" 
+                              max="200" 
+                              step="5"
+                              value={watermarkSize} 
+                              onChange={(e) => setWatermarkSize(Number(e.target.value))} 
+                              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
+                            />
+                        </div>
+                    </div>
+               </AccordionItem>
+
+               {/* 2. Invoice Details */}
+               <AccordionItem 
+                 title="Invoice Details" 
+                 icon={FileText} 
+                 isOpen={openSections.includes('details')} 
+                 onToggle={() => toggleSection('details')}
+               >
+                   <div className="grid grid-cols-2 gap-3">
+                       <div>
+                           <label className="text-xs text-muted-foreground uppercase font-bold">Invoice No</label>
+                           <input type="text" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} className="w-full p-2 rounded-md border border-input text-sm font-mono" />
+                       </div>
+                       <div>
+                           <label className="text-xs text-muted-foreground uppercase font-bold">Date</label>
+                           <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} className="w-full p-2 rounded-md border border-input text-sm" />
+                       </div>
+                   </div>
+               </AccordionItem>
+
+               {/* 3. Customer */}
+               <AccordionItem 
+                 title="Customer (Billed To)" 
+                 icon={User} 
+                 isOpen={openSections.includes('customer')} 
+                 onToggle={() => toggleSection('customer')}
+               >
+                    <div className="space-y-3">
+                        <input type="text" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Customer Name" />
+                        <input type="text" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Phone Number" />
+                        <textarea value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Billing Address" rows={2} />
+                     </div>
+               </AccordionItem>
+
+               {/* 4. Line Items */}
+               <AccordionItem 
+                 title="Line Items" 
+                 icon={ShoppingBag} 
+                 isOpen={openSections.includes('items')} 
+                 onToggle={() => toggleSection('items')}
+               >
+                    <div className="space-y-4">
+                        {items.map((item, i) => (
+                            <div key={item.id} className="p-3 bg-muted/20 rounded-lg border border-border relative group">
+                                <button onClick={() => handleRemoveItem(item.id)} className="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-4 h-4" /></button>
+                                
+                                <div className="grid grid-cols-12 gap-2">
+                                    <div className="col-span-12 mb-2">
+                                        <label className="text-[10px] uppercase font-bold text-muted-foreground">Item</label>
+                                        <input list={`products-${item.id}`} type="text" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm font-bold" placeholder="Item Name" />
+                                        <datalist id={`products-${item.id}`}>{products.map(p => <option key={p.id} value={p.name}>₹{p.price}</option>)}</datalist>
+                                    </div>
+                                    <div className="col-span-4">
+                                        <label className="text-[10px] uppercase font-bold text-muted-foreground">Qty</label>
+                                        <input type="number" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm text-center" />
+                                    </div>
+                                    <div className="col-span-4">
+                                        <label className="text-[10px] uppercase font-bold text-muted-foreground">Price</label>
+                                        <input type="number" value={item.price} onChange={e => handleItemChange(item.id, 'price', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm text-right" />
+                                    </div>
+                                    <div className="col-span-4 flex items-end justify-end">
+                                        <span className="font-bold text-sm">₹{(item.quantity * item.price).toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        <button onClick={handleAddItem} className="w-full py-2 bg-primary/5 border border-primary/20 text-primary rounded-lg font-semibold hover:bg-primary/10 transition-colors flex items-center justify-center gap-2">
+                            <Plus className="w-4 h-4" /> Add Item
+                        </button>
+                    </div>
+               </AccordionItem>
+
+               {/* 5. Payments & Totals */}
+               <AccordionItem 
+                 title="Payments & Totals" 
+                 icon={CreditCard} 
+                 isOpen={openSections.includes('payments')} 
+                 onToggle={() => toggleSection('payments')}
+               >
+                   <div className="space-y-4">
+                       <div className="flex justify-between items-center bg-muted/30 p-3 rounded-lg">
+                           <span className="text-sm font-medium">Subtotal</span>
+                           <span className="font-bold">₹{total.toLocaleString()}</span>
+                       </div>
+
+                       <div className="space-y-2">
+                           <div className="flex justify-between items-center">
+                               <span className="text-xs font-bold uppercase text-muted-foreground">Payments Received</span>
+                               <button onClick={handleAddPayment} className="text-xs text-primary hover:underline">+ Add</button>
+                           </div>
+                           {payments.map(p => (
+                               <div key={p.id} className="flex gap-2">
+                                   <input type="date" value={p.date} onChange={e => handlePaymentChange(p.id, 'date', e.target.value)} className="w-1/3 p-1 text-xs border rounded" />
+                                   <input type="number" value={p.amount} onChange={e => handlePaymentChange(p.id, 'amount', e.target.value)} className="flex-1 p-1 text-xs border rounded" placeholder="Amount" />
+                                   <button onClick={() => handleRemovePayment(p.id)} className="text-red-500"><Trash2 className="w-3" /></button>
+                               </div>
+                           ))}
+                       </div>
+
+                       <div className="flex justify-between items-center border-t border-border pt-2">
+                           <span className="font-bold text-primary">Balance Due</span>
+                           <span className="text-lg font-bold text-primary">₹{balanceDue.toLocaleString()}</span>
+                       </div>
+                   </div>
+               </AccordionItem>
+
+               {/* 6. Footer & Signatures */}
+               <AccordionItem 
+                 title="Footer & Signatures" 
+                 icon={Hash} 
+                 isOpen={openSections.includes('footer')} 
+                 onToggle={() => toggleSection('footer')}
+               >
+                   <div className="space-y-4">
+                       <div className="flex justify-between items-center">
+                            <span className="text-sm">Show Terms & Conditions</span>
+                            <Switch checked={showTerms} onChange={setShowTerms} />
+                       </div>
+                       
+                       <div className="flex justify-between items-center">
+                           <span className="text-sm">Show Signature</span>
+                           <Switch checked={showSignature} onChange={setShowSignature} />
+                       </div>
+                       {showSignature && (
+                           <div className="flex items-center gap-3">
+                               <label className="flex-1 text-xs bg-muted border border-dashed border-border p-3 rounded text-center cursor-pointer hover:bg-muted/80">
+                                   {signatureImage ? 'Change Signature' : 'Upload Signature'}
+                                   <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                                      const file = e.target.files[0]
+                                      if (file) {
+                                          const reader = new FileReader()
+                                          reader.onloadend = () => setSignatureImage(reader.result)
+                                          reader.readAsDataURL(file)
+                                      }
+                                }} />
+                               </label>
+                           </div>
+                       )}
+
+                       <div className="pt-4 border-t border-border">
+                           <div className="flex justify-between items-center mb-2">
+                               <span className="text-sm">Payment Info</span>
+                               <Switch checked={paymentDetails.show} onChange={c => setPaymentDetails({...paymentDetails, show: c})} />
+                           </div>
+                           {paymentDetails.show && (
+                               <div className="space-y-2">
+                                   <input type="text" value={paymentDetails.phonePe} onChange={e => setPaymentDetails({...paymentDetails, phonePe: e.target.value})} className="w-full p-2 border rounded text-xs" placeholder="PhonePe" />
+                                   <input type="text" value={paymentDetails.googlePay} onChange={e => setPaymentDetails({...paymentDetails, googlePay: e.target.value})} className="w-full p-2 border rounded text-xs" placeholder="Google Pay" />
+                                   <input type="text" value={paymentDetails.upiId} onChange={e => setPaymentDetails({...paymentDetails, upiId: e.target.value})} className="w-full p-2 border rounded text-xs" placeholder="UPI ID" />
+                               </div>
+                           )}
+                       </div>
+                   </div>
+               </AccordionItem>
+           </div>
        </div>
 
-       {/* RIGHT: PREVIEW SECTION */}
-       <div className="flex-1 bg-zinc-100 dark:bg-zinc-900 rounded-xl border border-border p-8 overflow-y-auto flex flex-col items-center relative">
-           <div className="absolute top-4 right-4 flex gap-3 z-10 print:hidden">
-              <button 
-                 onClick={handleDownload}
-                 className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium shadow-lg hover:bg-primary/90 transition-all hover:scale-105 active:scale-95"
-              >
-                  <Download className="w-4 h-4" /> Download PDF
-              </button>
-              <button 
-                 onClick={handlePrint}
-                 className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg font-medium shadow-lg hover:bg-gray-50 transition-all hover:scale-105 active:scale-95"
-              >
-                  <Printer className="w-4 h-4" /> Print
-              </button>
-           </div>
+       {/* RIGHT: LIVE PREVIEW SECTION */}
+       <div className="flex-1 flex flex-col min-w-0 bg-zinc-100 dark:bg-zinc-900 rounded-2xl border border-border shadow-sm overflow-hidden relative">
            
-           {/* The Invoice Paper (Scaled for view if needed, but simple scrolling is best) */}
-           <div className="shadow-2xl print:shadow-none origin-top transform scale-[0.65] md:scale-[0.75] xl:scale-[0.8] mt-12">
-              <InvoiceTemplate data={templateData} />
+           {/* Preview Toolbar */}
+           <div className="h-14 bg-card border-b border-border flex items-center justify-between px-6 shadow-sm z-20">
+               <span className="text-sm font-semibold text-muted-foreground uppercase tracking-widest hidden md:block">Live Preview</span>
+               
+               <div className="flex items-center gap-2">
+                   <button 
+                     onClick={() => setAutoScale(!autoScale)}
+                     className={`text-xs px-2 py-1 rounded border transition-colors ${autoScale ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:text-foreground'}`}
+                   >
+                       {autoScale ? 'Zoom 100%' : 'Fit to Screen'}
+                   </button>
+                    <button 
+                        onClick={handlePrint}
+                        className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                        title="Print"
+                    >
+                        <Printer className="w-5 h-5" />
+                    </button>
+                   <button 
+                     onClick={handleDownload}
+                     className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-primary/90 shadow transition-all"
+                   >
+                       <Download className="w-4 h-4" /> Download PDF
+                   </button>
+               </div>
            </div>
 
-           {/* Hidden Invoice for Print/Download PDF */}
+           {/* Preview Canvas */}
+           <div ref={containerRef} className={`flex-1 p-8 bg-zinc-100/50 relative ${autoScale ? 'overflow-hidden' : 'overflow-auto flex justify-center'}`}>
+               <div 
+                 className={`bg-white shadow-2xl transition-all origin-center print:shadow-none print:w-full print:max-w-none ${autoScale ? 'absolute top-1/2 left-1/2' : ''}`}
+                 style={autoScale ? { 
+                     transform: `translate(-50%, -50%) scale(${scale})`, 
+                     width: '794px', 
+                     height: '1123px',
+                 } : { 
+                     transform: 'scale(1)',
+                     width: '794px',
+                     minHeight: '1123px'
+                 }}
+               >
+                   <InvoiceTemplate data={templateData} />
+               </div>
+           </div>
+            
+            {/* Hidden component for Print/PDF */}
            <div style={{ position: 'absolute', top: -10000, left: -10000 }}>
                 <InvoiceTemplate ref={componentRef} data={templateData} />
            </div>
+
        </div>
     </div>
   )
