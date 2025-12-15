@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, Wallet, Package, Users, Clock, AlertCircle, CheckCircle } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, Package, Users, Clock, AlertCircle, CheckCircle, Briefcase } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, LabelList } from 'recharts'
 import { supabase } from '../../lib/supabase'
 import { useOrganization } from '../../context/OrganizationContext'
@@ -74,155 +74,184 @@ export default function Overview() {
     if (!currentOrg) return;
     setDataLoading(true)
     
-    // 1. Fetch Transactions
-    let query = supabase
-      .from('transactions')
-      .select('*')
-      .eq('organization_id', currentOrg.id) // Filter by Org
-      .order('date', { ascending: true })
-    
-    // Apply Date Filter to Query (optimization)
-    if (dateRange.from && dateRange.to) {
-       query = query.gte('date', dateRange.from).lte('date', dateRange.to)
-    }
-
-    const { data: transactions, error } = await query
-    
-    // 2. Fetch Products (for Inventory Stats)
-    const { data: products } = await supabase
-      .from('products')
-      .select('*')
-      .eq('organization_id', currentOrg.id) // Filter by Org
-      .order('stock', { ascending: true })
-
-    // 3. Fetch Workers (for Worker Stats)
-    const { data: workers } = await supabase
-      .from('workers')
-      .select('*')
-      .eq('organization_id', currentOrg.id) // Filter by Org
-
-    // 4. Fetch Pending (Separate from date filter)
-    const { data: pendingT } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('organization_id', currentOrg.id) // Filter by Org
-        .or('payment_status.eq.Pending,payment_status.eq.Partial')
-        .order('date', { ascending: true }) // Oldest due first
-        .limit(6) // Top 6
-
-    if (error) { console.error(error); setDataLoading(false); return }
-
-    // 4. Process KPI Data & Product Revenue
-    const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0)
-    const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0)
-    const netProfit = totalIncome - totalExpenses
-
-    // --- Product Revenue Calculation ---
-    const productRevenueMap = {}
-    const txnIds = transactions.map(t => t.id)
-    
-    // A. Legacy/Single Product Transactions
-    transactions.forEach(t => {
-        if (t.type === 'income' && t.product_id) {
-             productRevenueMap[t.product_id] = (productRevenueMap[t.product_id] || 0) + Number(t.amount)
-        }
-    })
-
-    // B. Multi-item Transactions (Fetch items for these transactions)
-    if (txnIds.length > 0) {
-        const { data: items } = await supabase
-            .from('transaction_items')
-            .select('*')
-            .in('transaction_id', txnIds)
+    try {
+        // 1. Fetch Transactions
+        let query = supabase
+          .from('transactions')
+          .select('*')
+          .eq('organization_id', currentOrg.id) // Filter by Org
+          .order('date', { ascending: true })
         
-        if (items) {
-            items.forEach(item => {
-                // Determine if parent txn is income (it should be if items exist, usually)
-                // We rely on the fact we only fetched items for the filtered transactions
-                // But we should verify if the item's parent txn is actually INCOME.
-                // We can look up the parent in our `transactions` array.
-                const parent = transactions.find(t => t.id === item.transaction_id)
-                if (parent && parent.type === 'income') {
-                     productRevenueMap[item.product_id] = (productRevenueMap[item.product_id] || 0) + Number(item.total_price)
-                }
-            })
+        // Apply Date Filter to Query (optimization)
+        if (dateRange.from && dateRange.to) {
+           query = query.gte('date', dateRange.from).lte('date', dateRange.to)
         }
+    
+        const { data: transactions, error } = await query
+        
+        // 2. Fetch Products (for Inventory Stats)
+        const { data: products } = await supabase
+          .from('products')
+          .select('*')
+          .eq('organization_id', currentOrg.id) // Filter by Org
+          .order('stock', { ascending: true })
+    
+        // 3. Fetch Workers (for Worker Stats)
+        const { data: workers } = await supabase
+          .from('workers')
+          .select('*')
+          .eq('organization_id', currentOrg.id) // Filter by Org
+    
+        // 4. Fetch Pending (Separate from date filter)
+        // A. Top 6 for list
+        const { data: pendingT } = await supabase
+            .from('transactions')
+            .select('*')
+            .eq('organization_id', currentOrg.id) 
+            .or('payment_status.eq.Pending,payment_status.eq.Partial')
+            .order('date', { ascending: true }) 
+            .limit(6) 
+    
+        // B. Total Pending Amount (Fetch all pending to sum)
+        const { data: allPending } = await supabase
+            .from('transactions')
+            .select('amount, amount_paid, type')
+            .eq('organization_id', currentOrg.id)
+            .or('payment_status.eq.Pending,payment_status.eq.Partial')
+        
+        let totalReceivables = 0 // Income Pending (Customers owe us)
+        let totalPayables = 0;    // Expense Pending (We owe dealers)
+    
+        (allPending || []).forEach(t => {
+            const amount = Number(t.amount) || 0
+            const paid = Number(t.amount_paid) || 0
+            const pending = Math.max(0, amount - paid)
+            
+            if (t.type === 'income') {
+                totalReceivables += pending
+            } else {
+                totalPayables += pending
+            }
+        })
+    
+        if (error) { console.error(error); return }
+    
+        // 4. Process KPI Data & Product Revenue
+        const safeTx = transactions || []
+        const totalIncome = safeTx.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0)
+        const totalExpenses = safeTx.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0)
+        const netProfit = totalIncome - totalExpenses
+    
+        // --- Product Revenue Calculation ---
+        const productRevenueMap = {}
+        const txnIds = safeTx.map(t => t.id)
+        
+        // A. Legacy/Single Product Transactions
+        safeTx.forEach(t => {
+            if (t.type === 'income' && t.product_id) {
+                 productRevenueMap[t.product_id] = (productRevenueMap[t.product_id] || 0) + Number(t.amount)
+            }
+        })
+    
+        // B. Multi-item Transactions (Fetch items for these transactions)
+        if (txnIds.length > 0) {
+            const { data: items } = await supabase
+                .from('transaction_items')
+                .select('*')
+                .in('transaction_id', txnIds)
+            
+            if (items) {
+                items.forEach(item => {
+                    const parent = safeTx.find(t => t.id === item.transaction_id)
+                    if (parent && parent.type === 'income') {
+                         productRevenueMap[item.product_id] = (productRevenueMap[item.product_id] || 0) + Number(item.total_price)
+                    }
+                })
+            }
+        }
+    
+        const productRevenueData = Object.keys(productRevenueMap).map(pid => {
+             const product = (products || []).find(p => p.id === pid)
+             return {
+                 name: product ? product.name : 'Unknown',
+                 revenue: productRevenueMap[pid]
+             }
+        })
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 5) // Top 5
+        // -----------------------------------
+    
+        // 5. Process Income Trend (Area Chart)
+        const start = parseISO(dateRange.from)
+        const end = parseISO(dateRange.to)
+        // Handle case where range is invalid or empty
+        const daysInterval = (start && end && !isNaN(start) && !isNaN(end)) ? eachDayOfInterval({ start, end }) : []
+    
+        const chartData = daysInterval.map(date => {
+           const dateStr = format(date, 'yyyy-MM-dd')
+           const dayTransactions = safeTx.filter(t => t.date === dateStr && t.type === 'income')
+           const dailyTotal = dayTransactions.reduce((sum, t) => sum + Number(t.amount), 0)
+           return {
+              name: format(date, 'dd MMM'),
+              sales: dailyTotal,
+              fullDate: dateStr
+           }
+        })
+    
+        // 6. Process Expense Breakdown (Pie Chart)
+        const expenseTransactions = safeTx.filter(t => t.type === 'expense')
+        const categoryTotals = {}
+        expenseTransactions.forEach(t => {
+           const cat = t.category || 'Other'
+           categoryTotals[cat] = (categoryTotals[cat] || 0) + Number(t.amount)
+        })
+    
+        const pieData = Object.keys(categoryTotals).map(cat => ({
+           name: cat,
+           value: categoryTotals[cat]
+        })).filter(d => d.value > 0)
+    
+        // 7. Process Inventory Bar Data (Top 5 Lowest Stock)
+        const inventoryBarData = (products || [])
+           .slice(0, 5) // Products are already ordered by stock ascending
+           .map(p => ({
+              name: p.name,
+              stock: p.stock,
+              initial: p.initial_stock || 0
+           }))
+    
+        // 8. Process Worker Bar Data (Top 5 Paid in Period)
+        const workerBarData = (workers || []).map(w => {
+           const totalPaid = safeTx
+              .filter(t => t.worker_id === w.id && t.type === 'expense')
+              .reduce((sum, t) => sum + Number(t.amount), 0)
+           return { name: w.name, paid: totalPaid }
+        })
+        .sort((a, b) => b.paid - a.paid) // Sort by highest paid
+        .slice(0, 5)
+        .filter(w => w.paid > 0)
+    
+        setData({
+          totalIncome,
+          totalExpenses,
+          netProfit,
+          totalReceivables,
+          totalPayables,
+          chartData,
+          pieData,
+          inventoryBarData,
+          workerBarData,
+          productRevenueData, 
+          inventoryCount: (products || []).length,
+          workersCount: (workers || []).length,
+          pendingPayments: pendingT || []
+        })
+
+    } catch (err) {
+        console.error("Dashboard Fetch Error:", err)
+    } finally {
+        setDataLoading(false)
     }
-
-    const productRevenueData = Object.keys(productRevenueMap).map(pid => {
-         const product = products.find(p => p.id === pid)
-         return {
-             name: product ? product.name : 'Unknown',
-             revenue: productRevenueMap[pid]
-         }
-    })
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 5) // Top 5
-    // -----------------------------------
-
-    // 5. Process Income Trend (Area Chart)
-    const start = parseISO(dateRange.from)
-    const end = parseISO(dateRange.to)
-    // Handle case where range is invalid or empty
-    const daysInterval = (start && end && !isNaN(start) && !isNaN(end)) ? eachDayOfInterval({ start, end }) : []
-
-    const chartData = daysInterval.map(date => {
-       const dateStr = format(date, 'yyyy-MM-dd')
-       const dayTransactions = transactions.filter(t => t.date === dateStr && t.type === 'income')
-       const dailyTotal = dayTransactions.reduce((sum, t) => sum + Number(t.amount), 0)
-       return {
-          name: format(date, 'dd MMM'),
-          sales: dailyTotal,
-          fullDate: dateStr
-       }
-    })
-
-    // 6. Process Expense Breakdown (Pie Chart)
-    const expenseTransactions = transactions.filter(t => t.type === 'expense')
-    const categoryTotals = {}
-    expenseTransactions.forEach(t => {
-       const cat = t.category || 'Other'
-       categoryTotals[cat] = (categoryTotals[cat] || 0) + Number(t.amount)
-    })
-
-    const pieData = Object.keys(categoryTotals).map(cat => ({
-       name: cat,
-       value: categoryTotals[cat]
-    })).filter(d => d.value > 0)
-
-    // 7. Process Inventory Bar Data (Top 5 Lowest Stock)
-    const inventoryBarData = (products || [])
-       .slice(0, 5) // Products are already ordered by stock ascending
-       .map(p => ({
-          name: p.name,
-          stock: p.stock,
-          initial: p.initial_stock || 0
-       }))
-
-    // 8. Process Worker Bar Data (Top 5 Paid in Period)
-    const workerBarData = (workers || []).map(w => {
-       const totalPaid = transactions
-          .filter(t => t.worker_id === w.id && t.type === 'expense')
-          .reduce((sum, t) => sum + Number(t.amount), 0)
-       return { name: w.name, paid: totalPaid }
-    })
-    .sort((a, b) => b.paid - a.paid) // Sort by highest paid
-    .slice(0, 5)
-    .filter(w => w.paid > 0)
-
-    setData({
-      totalIncome,
-      totalExpenses,
-      netProfit,
-      chartData,
-      pieData,
-      inventoryBarData,
-      workerBarData,
-      productRevenueData, // Add new data
-      inventoryCount: products?.length || 0,
-      workersCount: workers?.length || 0,
-      pendingPayments: pendingT || []
-    })
     setDataLoading(false)
   }
 
@@ -292,59 +321,102 @@ export default function Overview() {
         <div className="h-96 flex items-center justify-center text-muted-foreground">Loading Dashboard Data...</div>
       ) : (
         <>
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
-                <div className="bg-card border border-border rounded-xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start">
+            {/* Financial Overview - Hero Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="relative overflow-hidden rounded-2xl border border-green-100 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:bg-card dark:border-green-900/20 group">
+                    <div className="absolute right-0 top-0 h-32 w-32 -mr-8 -mt-8 rounded-full bg-green-500/10 blur-3xl group-hover:bg-green-500/20 transition-all"></div>
+                    <div className="relative flex justify-between items-start">
                         <div>
-                           <p className="text-sm text-muted-foreground font-medium mb-1">Total Income</p>
-                           <h3 className="text-2xl font-bold">₹ {data.totalIncome.toLocaleString()}</h3>
+                           <p className="text-sm font-medium text-muted-foreground mb-2">Total Income</p>
+                           <h3 className="text-3xl font-bold tracking-tight text-foreground">₹ {data.totalIncome.toLocaleString()}</h3>
+                           <div className="mt-2 flex items-center text-xs text-green-600 dark:text-green-400 font-medium bg-green-50 dark:bg-green-900/20 w-fit px-2 py-1 rounded-full">
+                             {/* <TrendingUp className="w-3 h-3 mr-1"/> +12% from last month */}
+                           </div>
                         </div>
-                        <div className="p-2 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg"><TrendingUp className="w-5 h-5"/></div>
-                    </div>
-                </div>
-                
-                <div className="bg-card border border-border rounded-xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start">
-                        <div>
-                           <p className="text-sm text-muted-foreground font-medium mb-1">Total Expenses</p>
-                           <h3 className="text-2xl font-bold">₹ {data.totalExpenses.toLocaleString()}</h3>
-                        </div>
-                        <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg"><TrendingDown className="w-5 h-5"/></div>
+                        <div className="p-3 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-xl shadow-sm"><TrendingUp className="w-6 h-6"/></div>
                     </div>
                 </div>
 
-                <div className="bg-card border border-border rounded-xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start">
+                <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:bg-card dark:border-red-900/20 group">
+                    <div className="absolute right-0 top-0 h-32 w-32 -mr-8 -mt-8 rounded-full bg-red-500/10 blur-3xl group-hover:bg-red-500/20 transition-all"></div>
+                    <div className="relative flex justify-between items-start">
                         <div>
-                           <p className="text-sm text-muted-foreground font-medium mb-1">Net Profit</p>
-                           <h3 className={`text-2xl font-bold ${data.netProfit >= 0 ? 'text-primary' : 'text-red-500'}`}>
+                           <p className="text-sm font-medium text-muted-foreground mb-2">Total Expenses</p>
+                           <h3 className="text-3xl font-bold tracking-tight text-foreground">₹ {data.totalExpenses.toLocaleString()}</h3>
+                           <div className="mt-2 flex items-center text-xs text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-900/20 w-fit px-2 py-1 rounded-full">
+                             {/* <TrendingDown className="w-3 h-3 mr-1"/> -4% from last month */}
+                           </div>
+                        </div>
+                        <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl shadow-sm"><TrendingDown className="w-6 h-6"/></div>
+                    </div>
+                </div>
+
+                <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:bg-card dark:border-blue-900/20 group">
+                    <div className="absolute right-0 top-0 h-32 w-32 -mr-8 -mt-8 rounded-full bg-blue-500/10 blur-3xl group-hover:bg-blue-500/20 transition-all"></div>
+                    <div className="relative flex justify-between items-start">
+                        <div>
+                           <p className="text-sm font-medium text-muted-foreground mb-2">Net Profit</p>
+                           <h3 className={`text-3xl font-bold tracking-tight ${data.netProfit >= 0 ? 'text-foreground' : 'text-red-500'}`}>
                                ₹ {data.netProfit.toLocaleString()}
                            </h3>
+                           <p className="text-xs text-muted-foreground mt-2">Before Taxes</p>
                         </div>
-                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg"><Wallet className="w-5 h-5"/></div>
+                        <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl shadow-sm"><Wallet className="w-6 h-6"/></div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Secondary Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                 {/* Receivables */}
+                 <div className="relative overflow-hidden rounded-2xl border border-orange-100 bg-white p-5 shadow-sm hover:shadow-md transition-all dark:bg-card dark:border-orange-900/20 group">
+                    <div className="absolute right-0 top-0 h-24 w-24 -mr-6 -mt-6 rounded-full bg-orange-500/10 blur-2xl group-hover:bg-orange-500/20 transition-all"></div>
+                    <div className="relative flex justify-between items-start">
+                        <div>
+                           <p className="text-sm font-medium text-muted-foreground mb-1">Receivables</p>
+                           <h3 className="text-2xl font-bold text-orange-600 dark:text-orange-400">₹ {(data.totalReceivables || 0).toLocaleString()}</h3>
+                           <p className="text-xs text-muted-foreground mt-1">Pending from Customers</p>
+                        </div>
+                        <div className="p-2.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-xl"><Clock className="w-5 h-5"/></div>
                     </div>
                 </div>
 
-                <Link to="/dashboard/inventory" className="bg-card border border-border rounded-xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow group cursor-pointer">
-                    <div className="flex justify-between items-start">
+                 {/* Payables */}
+                 <div className="relative overflow-hidden rounded-2xl border border-rose-100 bg-white p-5 shadow-sm hover:shadow-md transition-all dark:bg-card dark:border-rose-900/20 group">
+                    <div className="absolute right-0 top-0 h-24 w-24 -mr-6 -mt-6 rounded-full bg-rose-500/10 blur-2xl group-hover:bg-rose-500/20 transition-all"></div>
+                    <div className="relative flex justify-between items-start">
                         <div>
-                           <p className="text-sm text-muted-foreground font-medium mb-1">Inventory</p>
-                           <h3 className="text-2xl font-bold">{data.inventoryCount}</h3>
-                           {/* Removed text link as requested */}
+                           <p className="text-sm font-medium text-muted-foreground mb-1">Payables</p>
+                           <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400">₹ {(data.totalPayables || 0).toLocaleString()}</h3>
+                           <p className="text-xs text-muted-foreground mt-1">Pending to Dealers</p>
                         </div>
-                        <div className="p-2 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg"><Package className="w-5 h-5"/></div>
+                        <div className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl"><Briefcase className="w-5 h-5"/></div>
+                    </div>
+                </div>
+
+                {/* Inventory Link */}
+                <Link to="/dashboard/inventory" className="relative overflow-hidden rounded-2xl border border-border bg-white p-5 shadow-sm hover:shadow-md transition-all dark:bg-card group cursor-pointer block">
+                    <div className="absolute right-0 top-0 h-24 w-24 -mr-6 -mt-6 rounded-full bg-emerald-500/5 blur-2xl group-hover:bg-emerald-500/15 transition-all"></div>
+                    <div className="relative flex justify-between items-start">
+                        <div>
+                           <p className="text-sm font-medium text-muted-foreground mb-1">Inventory Items</p>
+                           <h3 className="text-2xl font-bold text-foreground">{data.inventoryCount}</h3>
+                           <p className="text-xs text-muted-foreground mt-1 text-emerald-600 dark:text-emerald-400">View Stock →</p>
+                        </div>
+                        <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl"><Package className="w-5 h-5"/></div>
                     </div>
                 </Link>
 
-                <Link to="/dashboard/workers" className="bg-card border border-border rounded-xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow group cursor-pointer">
-                    <div className="flex justify-between items-start">
+                {/* Workers Link */}
+                <Link to="/dashboard/workers" className="relative overflow-hidden rounded-2xl border border-border bg-white p-5 shadow-sm hover:shadow-md transition-all dark:bg-card group cursor-pointer block">
+                    <div className="absolute right-0 top-0 h-24 w-24 -mr-6 -mt-6 rounded-full bg-violet-500/5 blur-2xl group-hover:bg-violet-500/15 transition-all"></div>
+                    <div className="relative flex justify-between items-start">
                         <div>
-                           <p className="text-sm text-muted-foreground font-medium mb-1">Workers</p>
-                           <h3 className="text-2xl font-bold">{data.workersCount}</h3>
-                           {/* Removed text link as requested */}
+                           <p className="text-sm font-medium text-muted-foreground mb-1">Total Staff</p>
+                           <h3 className="text-2xl font-bold text-foreground">{data.workersCount}</h3>
+                           <p className="text-xs text-muted-foreground mt-1 text-violet-600 dark:text-violet-400">Manage Team →</p>
                         </div>
-                        <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg"><Users className="w-5 h-5"/></div>
+                        <div className="p-2.5 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-xl"><Users className="w-5 h-5"/></div>
                     </div>
                 </Link>
             </div>

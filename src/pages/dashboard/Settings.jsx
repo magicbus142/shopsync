@@ -156,15 +156,18 @@ export default function Settings() {
                    />
                 </div>
                 <div>
-                   <label className="text-sm font-medium text-muted-foreground block mb-1">Email Address</label>
+                   <label className="text-sm font-medium text-muted-foreground mb-1 flex items-center justify-between">
+                       Email Address
+                       <Lock className="w-3 h-3 opacity-50" />
+                   </label>
                    <input 
                       type="email" 
                       value={editForm.email}
-                      onChange={e => setEditForm({...editForm, email: e.target.value})}
-                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground"
+                      disabled
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-muted text-muted-foreground cursor-not-allowed"
                    />
-                   <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
-                     * Changing email requires confirmation.
+                   <p className="text-[10px] text-muted-foreground mt-1">
+                     * Email cannot be changed for security reasons.
                    </p>
                 </div>
                 

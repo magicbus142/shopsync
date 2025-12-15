@@ -6,7 +6,7 @@ import { OrganizationSelector } from '../organization/OrganizationSelector'
 
 const SIDEBAR_ITEMS = [
   { icon: LayoutDashboard, label: 'Overview', href: '/dashboard' },
-  { icon: BarChart3, label: 'Reports', href: '/dashboard/reports' },
+  // { icon: BarChart3, label: 'Reports', href: '/dashboard/reports' }, // Hidden for this version
   { icon: Package, label: 'Inventory', href: '/dashboard/inventory' },
   { icon: UsersIcon, label: 'Workers', href: '/dashboard/workers' },
   { icon: Receipt, label: 'Transactions', href: '/dashboard/transactions' },

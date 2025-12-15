@@ -1,23 +1,67 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Plus, Package, Download, Upload, Pencil, Trash2, Eye, X } from 'lucide-react'
+import { Search, Plus, Package, Download, Pencil, Trash2, Eye, X, Activity, Tag, AlertTriangle, TrendingUp } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useOrganization } from '../../context/OrganizationContext'
 import * as XLSX from 'xlsx'
 import ConfirmationModal from '../../components/ui/ConfirmationModal'
 import Pagination from '../../components/ui/Pagination'
+import AuditHistory from '../../components/common/AuditHistory'
+import ImageUploader from '../../components/common/ImageUploader'
+import { useToast } from '../../context/ToastContext'
 
 export default function Inventory() {
   const { currentOrg } = useOrganization()
+  const toast = useToast()
+  
   const [showAddForm, setShowAddForm] = useState(false)
-  const [newProduct, setNewProduct] = useState({ name: '', sku: '', stock: '', minStock: '10', image: '', price: '' })
+  
+  // Initial State for New Product
+  const initialProductState = { 
+      name: '', sku: '', stock: '', minStock: '10', 
+      image: '', price: '', buyingPrice: '', 
+      dealerName: '', amountPaid: '' 
+  }
+  const [newProduct, setNewProduct] = useState(initialProductState)
+  
   const [editingId, setEditingId] = useState(null)
   const [filter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
-  const [uploading, setUploading] = useState(false)
+  const [recordPayment, setRecordPayment] = useState(false)
   
+  // View/History State
+  const [viewProduct, setViewProduct] = useState(null)
+  const [supplierTransactions, setSupplierTransactions] = useState([])
+
+  useEffect(() => {
+     if (viewProduct?.supplier_name && viewProduct?.name) {
+         fetchSupplierTransactions()
+     } else {
+         setSupplierTransactions([])
+     }
+  }, [viewProduct])
+
+  const fetchSupplierTransactions = async () => {
+    try {
+        // Fetch transactions where party_name matches supplier OR description contains product name
+        // We limit to recent 5 for brevity
+        const { data, error } = await supabase
+            .from('transactions')
+            .select('*')
+            .eq('organization_id', currentOrg.id)
+            .ilike('party_name', viewProduct.supplier_name)
+            .order('date', { ascending: false })
+            .limit(5)
+            
+        if (error) console.error('Error fetching tx:', error)
+        else setSupplierTransactions(data || [])
+    } catch (err) {
+        console.error(err)
+    }
+  }
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 9
@@ -26,28 +70,9 @@ export default function Inventory() {
     setCurrentPage(1)
   }, [search, filter])
   
-  // View/History State
-  const [viewProduct, setViewProduct] = useState(null)
-  const [productHistory, setProductHistory] = useState([])
-
-  const handleView = async (product) => {
-    setViewProduct(product)
-    const { data } = await supabase
-        .from('product_history')
-        .select('*')
-        .eq('product_id', product.id)
-        .order('changed_at', { ascending: false })
-    
-    setProductHistory(data || [])
-  }
-  
   // Modal State
   const [confirmModal, setConfirmModal] = useState({ 
-    isOpen: false, 
-    title: '', 
-    message: '', 
-    onConfirm: () => {},
-    variant: 'danger' 
+    isOpen: false, title: '', message: '', onConfirm: () => {}, variant: 'danger' 
   })
 
   // Start with loading products
@@ -60,6 +85,7 @@ export default function Inventory() {
     const { data, error } = await supabase
       .from('products')
       .select('*')
+      .eq('organization_id', currentOrg.id)
       .order('created_at', { ascending: false })
     
     if (error) {
@@ -68,38 +94,6 @@ export default function Inventory() {
       setProducts(data || [])
     }
     setLoading(false)
-  }
-
-  const handleImageUpload = async (e) => {
-    try {
-      setUploading(true)
-      const file = e.target.files[0]
-      if (!file) return
-
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Math.random()}.${fileExt}`
-      const filePath = `${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('images')
-        .upload(filePath, file)
-
-      if (uploadError) {
-        throw uploadError
-      }
-
-      const { data } = supabase.storage
-        .from('images')
-        .getPublicUrl(filePath)
-
-      if (data) {
-          setNewProduct({ ...newProduct, image: data.publicUrl })
-      }
-    } catch (error) {
-      alert('Error uploading image: ' + error.message)
-    } finally {
-      setUploading(false)
-    }
   }
 
   const handleDelete = (id) => {
@@ -115,19 +109,12 @@ export default function Inventory() {
              if (error) {
                console.error(error)
                if (error.code === '23503') { // Foreign key violation
-                   setConfirmModal({
-                       isOpen: true,
-                       title: 'Cannot Delete Product',
-                       message: 'This product is part of existing transactions. You cannot delete it while it has associated records. Please delete the transactions first.',
-                       variant: 'danger',
-                       showCancel: false,
-                       confirmText: 'Okay',
-                       onConfirm: () => {}
-                   })
+                   toast.error('Cannot delete product with associated records.')
                } else {
-                   alert('Error deleting product')
+                   toast.error('Error deleting product')
                }
              } else {
+               toast.success('Product deleted successfully')
                fetchProducts()
              }
         }
@@ -142,8 +129,11 @@ export default function Inventory() {
       minStock: product.min_stock_level || 10,
       image: product.image_url || '',
       price: product.price || '',
-      buyingPrice: '' // For expense calculation
+      buyingPrice: product.buying_price || '', 
+      dealerName: product.supplier_name || '', // Load saved supplier
+      amountPaid: '' // Do not load previous payment info to avoid confusion
     })
+    setRecordPayment(false)
     setEditingId(product.id)
     setShowAddForm(true)
   }
@@ -158,109 +148,97 @@ export default function Inventory() {
   const handleAddProduct = async (e) => {
     e.preventDefault()
     
-    // [TESTING MODE] Get User ID
-    let userId = null
+    // Get User ID (Supabase Auth)
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) userId = user.id
-    else {
-       const local = localStorage.getItem('user')
-       if (local) userId = JSON.parse(local).id
-    }
-
-    if (!userId) {
-       alert('User not found')
-       return
-    }
-
-    if (!currentOrg) {
-        alert('No organization selected')
-        return
+    if (!user || !currentOrg) { 
+        toast.error("Authentication Error: Please login again.")
+        return 
     }
 
     const item = {
        organization_id: currentOrg.id,
-       user_id: userId,
        name: newProduct.name,
        sku: newProduct.sku,
        stock: parseInt(newProduct.stock),
        min_stock_level: parseInt(newProduct.minStock),
        image_url: newProduct.image || null,
-       price: parseFloat(newProduct.price) || 0
+       price: parseFloat(newProduct.price) || 0,
+       buying_price: parseFloat(newProduct.buyingPrice) || 0,
+       supplier_name: recordPayment ? newProduct.dealerName : (newProduct.dealerName || null) 
     }
     
     if (!editingId) {
+        item.user_id = user.id
         item.initial_stock = parseInt(newProduct.stock)
     }
 
     const executeSave = async () => {
-        if (editingId) {
-            const { error } = await supabase
-                .from('products')
-                .update(item)
-                .eq('id', editingId)
-                
-            if (error) {
-               alert('Failed to update product')
-               console.error(error)
+        try {
+            const cost = parseFloat(newProduct.buyingPrice) || 0
+
+            if (editingId) {
+                // UPDATE
+                const { error } = await supabase
+                    .from('products')
+                    .update(item)
+                    .eq('id', editingId)
+                    
+                if (error) throw error;
+                toast.success("Product updated successfully")
             } else {
-                // Calculate stock difference and add expense
-                const oldStock = parseInt(product.stock)
-                const newStockVal = parseInt(newProduct.stock)
-                const stockDiff = newStockVal - oldStock
+                // INSERT
+                const { data: prodData, error } = await supabase.from('products').insert([item]).select()
+        
+                if (error) throw error;
                 
-                if (stockDiff > 0 && newProduct.buyingPrice) {
-                    const cost = parseFloat(newProduct.buyingPrice)
-                    if (cost > 0) {
-                        const { error: txError } = await supabase.from('transactions').insert([{
-                            organization_id: currentOrg.id,
-                            user_id: userId,
-                            type: 'expense',
-                            amount: stockDiff * cost,
-                            category: 'Inventory',
-                            description: `Restock: ${stockDiff} units of ${newProduct.name}`,
-                            date: new Date().toISOString().split('T')[0],
-                            payment_status: 'Paid', // Assuming immediate payment for stock? Or Pending? Let's default to Paid for now as it's an expense entry.
-                            payment_method: 'Cash' // Default
-                        }])
-                        if (txError) console.error('Error adding expense:', txError)
+                toast.success("Product added successfully")
+                
+                // Add Expense Transaction Logic
+                const totalAmount = parseInt(newProduct.stock) * cost
+                        
+                if (recordPayment && totalAmount > 0) {
+                    let payStatus = 'Paid'
+                    let amtPaidNow = parseFloat(newProduct.amountPaid) || 0
+
+                    if (amtPaidNow === 0) payStatus = 'Pending'
+                    else if (amtPaidNow < totalAmount) payStatus = 'Partial'
+                    else payStatus = 'Paid'
+
+                    const { error: txError, data: txData } = await supabase.from('transactions').insert([{
+                        organization_id: currentOrg.id,
+                        user_id: user.id,
+                        type: 'expense',
+                        amount: totalAmount,
+                        amount_paid: amtPaidNow, // Initial payment
+                        category: 'Inventory Purchase',
+                        description: `Stock Purchase: ${newProduct.stock} x ${newProduct.name}`,
+                        date: new Date().toISOString().split('T')[0],
+                        payment_status: payStatus,
+                        payment_method: 'Cash', // Default to Cash for now
+                        party_name: newProduct.dealerName
+                    }]).select()
+
+                    if (txError) {
+                        console.error('Error adding expense:', txError)
+                        toast.error("Product added, but failed to record expense info.")
+                    } else if (amtPaidNow > 0 && txData?.[0]?.id) {
+                         // Create Payment Record if paid > 0
+                         const { error: payError } = await supabase.from('transaction_payments').insert([{
+                             transaction_id: txData[0].id,
+                             amount: amtPaidNow,
+                             date: new Date().toISOString().split('T')[0],
+                             payment_method: 'Cash'
+                         }])
+                         if (payError) console.error('Error recording payment history:', payError)
                     }
                 }
-
-                setShowAddForm(false)
-                setNewProduct({ name: '', sku: '', stock: '', minStock: '10', image: '', price: '', buyingPrice: '' })
-                setEditingId(null)
-                fetchProducts() 
             }
-        } else {
-            const { error } = await supabase.from('products').insert([item])
-    
-            if (error) {
-               alert('Failed to add product')
-               console.error(error)
-            } else {
-                // Add Initial Expense
-                if (parseInt(newProduct.stock) > 0 && newProduct.buyingPrice) {
-                    const cost = parseFloat(newProduct.buyingPrice)
-                    if (cost > 0) {
-                        const { error: txError } = await supabase.from('transactions').insert([{
-                            organization_id: currentOrg.id,
-                            user_id: userId,
-                            type: 'expense',
-                            amount: parseInt(newProduct.stock) * cost,
-                            category: 'Inventory',
-                            description: `Initial Stock: ${newProduct.stock} units of ${newProduct.name}`,
-                            date: new Date().toISOString().split('T')[0],
-                            payment_status: 'Paid',
-                            payment_method: 'Cash'
-                        }])
-                        if (txError) console.error('Error adding expense:', txError)
-                    }
-                }
 
-                setShowAddForm(false)
-                setNewProduct({ name: '', sku: '', stock: '', minStock: '10', image: '', price: '', buyingPrice: '' })
-                fetchProducts() 
-            }
+            closeForm()
+            fetchProducts() 
+        } catch (error) {
+            console.error("Error saving product:", error)
+            toast.error("Failed to save product")
         }
     }
 
@@ -273,8 +251,14 @@ export default function Inventory() {
            onConfirm: executeSave
        })
     } else {
-       executeSave()
+       await executeSave()
     }
+  }
+
+  const closeForm = () => {
+      setShowAddForm(false)
+      setNewProduct(initialProductState)
+      setEditingId(null)
   }
 
   const getFilteredProducts = () => {
@@ -323,7 +307,6 @@ export default function Inventory() {
             >
               <Plus className="w-4 h-4" /> Add Product
             </button>
-
          </div>
       </div>
 
@@ -356,12 +339,182 @@ export default function Inventory() {
           </div>
       </div>
 
+      {/* Inline Detail View */}
+      <AnimatePresence>
+        {viewProduct && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+             <div className="bg-card border border-border rounded-xl shadow-lg mb-6 overflow-hidden relative">
+                {/* Background Pattern */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+
+                <div className="p-6">
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="flex items-center gap-2">
+                             <div className="p-2 bg-primary/10 text-primary rounded-lg">
+                                <Activity className="w-5 h-5" />
+                             </div>
+                             <h3 className="text-xl font-bold tracking-tight">Product Insights</h3>
+                        </div>
+                        <button onClick={() => setViewProduct(null)} className="p-2 hover:bg-muted rounded-full transition-colors">
+                            <X className="w-5 h-5 text-muted-foreground" />
+                        </button>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row gap-8">
+                        {/* Left: Image & Key Info */}
+                        <div className="w-full md:w-auto flex flex-col gap-4">
+                            <div className="w-full md:w-64 aspect-square rounded-2xl bg-muted border border-border overflow-hidden relative shadow-sm group mx-auto">
+                                {viewProduct.image_url ? (
+                                    <img src={viewProduct.image_url} alt={viewProduct.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                                        <Package className="w-12 h-12 opacity-20 mb-2" />
+                                        <span className="text-xs">No Image</span>
+                                    </div>
+                                )}
+                                <div className="absolute top-3 left-3">
+                                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-sm uppercase tracking-wide ${
+                                        viewProduct.stock > (viewProduct.min_stock_level || 10) 
+                                        ? 'bg-white/90 text-green-700 dark:bg-black/80 dark:text-green-400'
+                                        : 'bg-white/90 text-red-700 dark:bg-black/80 dark:text-red-400'
+                                     }`}>
+                                        {viewProduct.stock > (viewProduct.min_stock_level || 10) ? 'In Stock' : 'Low Stock'}
+                                     </span>
+                                </div>
+                            </div>
+
+                            <div className="bg-muted/30 p-3 rounded-xl border border-border/50 md:w-64">
+                                <h2 className="text-lg font-bold mb-0.5 truncate" title={viewProduct.name}>{viewProduct.name}</h2>
+                                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                    <Tag className="w-3 h-3" /> SKU: {viewProduct.sku || 'N/A'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Right: Metrics Grid */}
+                        <div className="flex-1 space-y-6 min-w-0">
+                             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/30">
+                                     <p className="text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-wider mb-1">Selling Price</p>
+                                     <p className="text-2xl font-bold text-foreground">₹{viewProduct.price}</p>
+                                </div>
+                                <div className="p-4 rounded-xl bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30">
+                                     <p className="text-xs font-bold text-orange-700 dark:text-orange-400 uppercase tracking-wider mb-1">Buying Price</p>
+                                     <p className="text-2xl font-bold text-foreground">₹{viewProduct.buying_price || 0}</p>
+                                </div>
+                                <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30">
+                                     <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-1">Inventory Value</p>
+                                     <p className="text-2xl font-bold text-foreground">
+                                         ₹{(viewProduct.stock * (viewProduct.buying_price || 0)).toLocaleString()}
+                                     </p>
+                                </div>
+                             </div>
+
+                             <div className="grid grid-cols-2 gap-4">
+                                 <div className="p-4 rounded-xl border border-border bg-card shadow-sm">
+                                      <div className="flex items-center gap-2 mb-2">
+                                         <Package className="w-4 h-4 text-primary" />
+                                         <span className="text-sm font-medium">Stock Status</span>
+                                      </div>
+                                      <div className="flex items-end gap-2">
+                                          <span className="text-3xl font-bold">{viewProduct.stock}</span>
+                                          <span className="text-sm text-muted-foreground mb-1">units</span>
+                                      </div>
+                                      <div className="w-full h-2 bg-muted rounded-full mt-2 overflow-hidden">
+                                          <div className="h-full bg-primary" style={{ width: `${Math.min(100, (viewProduct.stock / (viewProduct.min_stock_level * 3)) * 100)}%` }}></div>
+                                      </div>
+                                 </div>
+
+                                 <div className="p-4 rounded-xl border border-border bg-card shadow-sm">
+                                      <div className="flex items-center gap-2 mb-2">
+                                         <TrendingUp className="w-4 h-4 text-green-500" />
+                                         <span className="text-sm font-medium">Profit Margin</span>
+                                      </div>
+                                      <div className="flex items-end gap-2">
+                                          <span className="text-3xl font-bold text-green-600">
+                                            {viewProduct.price > 0 && viewProduct.buying_price > 0 
+                                                ? Math.round(((viewProduct.price - viewProduct.buying_price) / viewProduct.price) * 100) 
+                                                : 0}%
+                                          </span>
+                                          <span className="text-sm text-muted-foreground mb-1">per unit</span>
+                                      </div>
+                                      <p className="text-xs text-muted-foreground mt-2">
+                                          Potential Profit: ₹{(viewProduct.price - (viewProduct.buying_price || 0)).toLocaleString()} / unit
+                                      </p>
+                                 </div>
+                             </div>
+
+                             {viewProduct.supplier_name && (
+                                 <div className="space-y-4">
+                                     {/* Premium Supplier Card */}
+                                     <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-xl p-4 relative overflow-hidden group">
+                                         <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                             <Package className="w-24 h-24 text-indigo-600" />
+                                         </div>
+                                         <div className="relative z-10 flex items-center gap-4">
+                                             <div className="w-12 h-12 rounded-full bg-white dark:bg-indigo-950 flex items-center justify-center text-lg font-bold text-indigo-700 dark:text-indigo-300 shadow-sm border border-indigo-100 dark:border-indigo-800">
+                                                 {viewProduct.supplier_name.substring(0, 2).toUpperCase()}
+                                             </div>
+                                             <div>
+                                                 <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-0.5">Verified Supplier</p>
+                                                 <h4 className="text-lg font-bold text-foreground">{viewProduct.supplier_name}</h4>
+                                             </div>
+                                         </div>
+                                     </div>
+
+                                     {/* Recent Payments List */}
+                                     {supplierTransactions.length > 0 && (
+                                         <div className="bg-card border border-border rounded-xl p-4">
+                                             <h5 className="text-sm font-bold mb-3 flex items-center gap-2">
+                                                 <Activity className="w-4 h-4 text-green-500" /> Recent Payments to Dealer
+                                             </h5>
+                                             <div className="space-y-2">
+                                                 {supplierTransactions.map((tx, idx) => (
+                                                     <div key={tx.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 hover:bg-muted transition-colors text-sm">
+                                                         <div className="flex flex-col">
+                                                             <span className="font-medium text-foreground">
+                                                                 {tx.description && tx.description.includes(viewProduct.name) ? 'Stock Purchase' : 'Payment'}
+                                                             </span>
+                                                             <span className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString()}</span>
+                                                         </div>
+                                                         <div className="text-right">
+                                                             <div className="font-bold text-foreground">₹{tx.amount.toLocaleString()}</div>
+                                                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                                                                 tx.payment_status === 'Paid' ? 'bg-green-100 text-green-700' : 
+                                                                 tx.payment_status === 'Partially Paid' ? 'bg-yellow-100 text-yellow-700' : 
+                                                                 'bg-red-100 text-red-700'
+                                                             }`}>
+                                                                 {tx.payment_status}
+                                                             </span>
+                                                         </div>
+                                                     </div>
+                                                 ))}
+                                             </div>
+                                         </div>
+                                     )}
+                                 </div>
+                             )}
+                        </div>
+                    </div>
+                    
+                    <div className="mt-8 pt-8 border-t border-border">
+                        <AuditHistory tableName="products" recordId={viewProduct.id} />
+                    </div>
+                </div>
+             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Product List - Grid on large screens */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
         <AnimatePresence mode="popLayout">
-          {currentItems.map((product) => {
-            const status = getStockStatus(product)
-            return (
+          {currentItems.map((product) => (
               <motion.div
                 key={product.id}
                 layout
@@ -406,9 +559,9 @@ export default function Inventory() {
                            {product.stock > (product.min_stock_level || 10) ? 'In Stock' : product.stock === 0 ? 'Out of Stock' : 'Low Stock'}
                        </span>
 
-                       {/* Action Buttons (Hover only or visible on mobile) */}
+                       {/* Action Buttons */}
                        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                         <button onClick={() => handleView(product)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md" title="View History"><Eye className="w-3.5 h-3.5" /></button>
+                         <button onClick={() => setViewProduct(product)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md" title="View History"><Eye className="w-3.5 h-3.5" /></button>
                          <button onClick={() => handleEdit(product)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md"><Pencil className="w-3.5 h-3.5" /></button>
                          <button onClick={() => handleDelete(product.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
                        </div>
@@ -421,16 +574,15 @@ export default function Inventory() {
                           <p className="text-lg font-bold leading-none mt-0.5">{product.stock}</p>
                        </div>
                        <div>
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Received</p>
-                          <p className={`text-lg font-bold leading-none mt-0.5 ${product.stock >= (product.initial_stock || 0) ? 'text-green-600' : 'text-muted-foreground'}`}>
-                              {product.initial_stock ? `+${product.initial_stock}` : '-'}
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Buying Price</p>
+                          <p className="text-lg font-bold text-muted-foreground leading-none mt-0.5">
+                              ₹{product.buying_price || 0}
                           </p>
                        </div>
                    </div>
                 </div>
               </motion.div>
-            )
-          })}
+          ))}
         </AnimatePresence>
         {getFilteredProducts().length === 0 && (
            <div className="col-span-full text-center py-12 text-muted-foreground">
@@ -438,7 +590,6 @@ export default function Inventory() {
              <p>No products found.</p>
            </div>
         )}
-        
       </div>
 
       {/* Pagination */}
@@ -466,13 +617,12 @@ export default function Inventory() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-card w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
+              className="bg-card w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
             >
               <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30">
-                <h3 className="text-xl font-bold">Add New Product</h3>
-                <button onClick={() => setShowAddForm(false)} className="p-1 hover:bg-black/10 rounded-full">
-                  <span className="sr-only">Close</span>
-                  <Plus className="w-6 h-6 rotate-45" /> 
+                <h3 className="text-xl font-bold">{editingId ? 'Edit Product' : 'Add New Product'}</h3>
+                <button onClick={closeForm} className="p-1 hover:bg-black/10 rounded-full">
+                  <X className="w-6 h-6" /> 
                 </button>
               </div>
               
@@ -506,11 +656,11 @@ export default function Inventory() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Buying Price (₹) <span className="text-xs text-muted-foreground font-normal">(Expense)</span></label>
+                    <label className="text-sm font-medium">Buying Price (₹)</label>
                     <input 
                       type="number" 
                       className="w-full px-3 py-2 border border-input rounded-lg bg-background"
-                      value={newProduct.buyingPrice || ''}
+                      value={newProduct.buyingPrice}
                       onChange={e => setNewProduct({...newProduct, buyingPrice: e.target.value})}
                       placeholder="Per Unit Cost"
                     />
@@ -519,7 +669,7 @@ export default function Inventory() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Initial Stock</label>
+                    <label className="text-sm font-medium">Current Stock</label>
                     <input 
                       type="number"
                       required 
@@ -539,58 +689,94 @@ export default function Inventory() {
                   </div>
                 </div>
 
+                {/* Dealer Name (Visible in Edit too) */}
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Supplier / Dealer Name</label>
+                    <input 
+                        className="w-full px-3 py-2 border border-input rounded-lg bg-background"
+                        placeholder="e.g. ABC Suppliers"
+                        value={newProduct.dealerName}
+                        onChange={e => setNewProduct({...newProduct, dealerName: e.target.value})}
+                    />
+                </div>
+
+                {/* Dealer & Payment Section (Only on Add) */}
+                {!editingId && (
+                    <div className="bg-muted/30 p-4 rounded-xl space-y-4 border border-border/50">
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm font-medium flex items-center gap-2 cursor-pointer">
+                                <input 
+                                    type="checkbox"
+                                    checked={recordPayment}
+                                    onChange={e => setRecordPayment(e.target.checked)}
+                                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                Record Payment Details?
+                            </label>
+                            {recordPayment && newProduct.buyingPrice && newProduct.stock && (
+                                 <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                    Total: ₹{(parseFloat(newProduct.buyingPrice) * parseInt(newProduct.stock)).toLocaleString()}
+                                 </span>
+                            )}
+                        </div>
+
+                        <AnimatePresence>
+                            {recordPayment && (
+                                <motion.div 
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="grid grid-cols-1 gap-4 overflow-hidden pt-2"
+                                >
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-muted-foreground">Amount Paid Now</label>
+                                        <input 
+                                            type="number"
+                                            className="w-full px-3 py-2 border border-input rounded-lg bg-background text-sm"
+                                            placeholder="0.00"
+                                            value={newProduct.amountPaid}
+                                            onChange={e => setNewProduct({...newProduct, amountPaid: e.target.value})}
+                                        />
+                                        {newProduct.buyingPrice && newProduct.stock && (
+                                            <div className="text-[10px] text-right text-muted-foreground">
+                                                Pending: <span className="text-red-500 font-medium">
+                                                    ₹{Math.max(0, (parseFloat(newProduct.buyingPrice) * parseInt(newProduct.stock)) - (parseFloat(newProduct.amountPaid) || 0)).toLocaleString()}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                )}
+                
+                {/* On Edit, no extra field needed as main one is shared */}
+                {/* {editingId && ...} removed */}
+
                 <div className="space-y-3">
                     <label className="text-sm font-medium">Product Image</label>
-                    <div className="flex gap-4 items-start">
-                        <div className="flex-1 space-y-2">
-                            <input 
-                              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-sm"
-                              placeholder="Image URL (https://...)"
-                              value={newProduct.image}
-                              onChange={e => setNewProduct({...newProduct, image: e.target.value})}
-                            />
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">OR</span>
-                                <label className="cursor-pointer text-xs bg-secondary hover:bg-secondary/80 text-secondary-foreground px-3 py-1.5 rounded-md transition-colors flex items-center gap-2">
-                                    <Upload className="w-3 h-3" /> 
-                                    {uploading ? 'Uploading...' : 'Upload Photo'}
-                                    <input 
-                                       type="file" 
-                                       className="hidden" 
-                                       accept="image/*"
-                                       onChange={handleImageUpload}
-                                       disabled={uploading}
-                                    />
-                                </label>
-                            </div>
-                        </div>
-                        {newProduct.image && (
-                            <div className="w-16 h-16 rounded-lg border border-border bg-muted overflow-hidden">
-                                <img 
-                                  src={newProduct.image} 
-                                  alt="Preview" 
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => { e.target.style.display = 'none' }} 
-                                />
-                            </div>
-                        )}
-                    </div>
+                    <ImageUploader 
+                        initialImage={newProduct.image}
+                        onUpload={(url) => setNewProduct({ ...newProduct, image: url })}
+                        folder="inventory"
+                        placeholder="Upload Product Image"
+                    />
                 </div>
 
                 <div className="pt-4 flex gap-3 justify-end">
                    <button 
                      type="button"
-                     onClick={() => setShowAddForm(false)}
+                     onClick={closeForm}
                      className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-lg"
                    >
                      Cancel
                    </button>
                    <button 
                      type="submit"
-                     disabled={uploading}
-                     className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50"
+                     className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
                    >
-                     {uploading ? 'Wait...' : 'Add Product'}
+                     {editingId ? 'Save Changes' : 'Add Product'}
                    </button>
                 </div>
               </form>
@@ -607,76 +793,6 @@ export default function Inventory() {
         message={confirmModal.message}
         variant={confirmModal.variant}
       />
-
-      {/* View History Modal */}
-      <AnimatePresence>
-        {viewProduct && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-card w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] overflow-y-auto"
-            >
-               <div className="p-6 border-b border-border flex justify-between items-center sticky top-0 bg-card z-10">
-                <div>
-                    <h3 className="text-xl font-bold">{viewProduct.name}</h3>
-                    <p className="text-sm text-muted-foreground">History Log</p>
-                </div>
-                <button onClick={() => setViewProduct(null)} className="p-1 hover:bg-muted rounded-full">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-               <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                      <thead className="bg-muted/50 text-muted-foreground font-medium sticky top-0">
-                          <tr>
-                              <th className="px-4 py-3 whitespace-nowrap">Date</th>
-                              <th className="px-4 py-3 whitespace-nowrap">Field</th>
-                              <th className="px-4 py-3 whitespace-nowrap">Old Value</th>
-                              <th className="px-4 py-3 whitespace-nowrap">New Value</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                          {productHistory.length === 0 ? (
-                              <tr>
-                                  <td colSpan="4" className="px-6 py-8 text-center text-muted-foreground italic">
-                                      No edit history found.
-                                  </td>
-                              </tr>
-                          ) : (
-                              productHistory.map((h) => (
-                                  <tr key={h.id} className="hover:bg-muted/20">
-                                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                                          {new Date(h.changed_at).toLocaleString('en-IN', { 
-                                              day: '2-digit', month: 'short', 
-                                              hour: '2-digit', minute: '2-digit'
-                                          })}
-                                      </td>
-                                      <td className="px-4 py-3 font-medium capitalize whitespace-nowrap">{h.field_changed.replace(/_/g, ' ')}</td>
-                                      <td className="px-4 py-3 text-red-500 line-through opacity-70 whitespace-nowrap">{String(h.old_value || '-')}</td>
-                                      <td className="px-4 py-3 text-green-600 whitespace-nowrap">{String(h.new_value || '-')}</td>
-                                  </tr>
-                              ))
-                          )}
-                      </tbody>
-                  </table>
-               </div>
-
-              
-              <div className="p-4 border-t border-border bg-muted/10 text-right">
-                  <button 
-                    onClick={() => setViewProduct(null)}
-                    className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
-                  >
-                      Close
-                  </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }

@@ -72,6 +72,7 @@ export default function InvoiceGenerator() {
   }
 
   // Invoice State
+  const [documentType, setDocumentType] = useState('INVOICE') // New State
   const [invoiceDate, setInvoiceDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [invoiceNumber, setInvoiceNumber] = useState('')
   const [customer, setCustomer] = useState({
@@ -261,6 +262,7 @@ export default function InvoiceGenerator() {
   }
 
   const templateData = {
+     documentTitle: documentType, // Passing dynamic title
      customer,
      items,
      invoiceDate: format(new Date(invoiceDate), 'dd MMM yyyy'),
@@ -309,6 +311,23 @@ export default function InvoiceGenerator() {
                  onToggle={() => toggleSection('header')}
                >
                  <div className="space-y-4">
+                     {/* Document Type Selector */}
+                     <div>
+                        <label className="text-xs text-muted-foreground uppercase font-bold mb-1 block">Document Type</label>
+                        <select 
+                            value={documentType}
+                            onChange={(e) => setDocumentType(e.target.value)}
+                            className="w-full p-2 rounded-md border border-input text-sm bg-background"
+                        >
+                            <option value="INVOICE">INVOICE</option>
+                            <option value="BILL">BILL-RECEIPT</option>
+                            <option value="QUOTATION">QUOTATION</option>
+                            <option value="RECEIPT">RECEIPT</option>
+                        </select>
+                     </div>
+
+                     <hr className="border-border" />
+
                      {/* Logo Toggle */}
                      <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                         <span className="text-sm font-medium">Show Logo</span>
@@ -543,19 +562,32 @@ export default function InvoiceGenerator() {
                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-widest hidden md:block">Live Preview</span>
                
                <div className="flex items-center gap-2">
-                   <button 
-                     onClick={() => setAutoScale(!autoScale)}
-                     className={`text-xs px-2 py-1 rounded border transition-colors ${autoScale ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:text-foreground'}`}
-                   >
-                       {autoScale ? 'Zoom 100%' : 'Fit to Screen'}
-                   </button>
-                    <button 
-                        onClick={handlePrint}
-                        className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-                        title="Print"
+                    <select
+                        value={autoScale ? 'fit' : Math.round(scale * 100)}
+                        onChange={(e) => {
+                            const val = e.target.value
+                            if (val === 'fit') {
+                                setAutoScale(true)
+                            } else {
+                                setAutoScale(false)
+                                setScale(Number(val) / 100)
+                            }
+                        }}
+                        className="h-8 text-xs border border-border rounded-lg bg-background px-2 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
                     >
-                        <Printer className="w-5 h-5" />
-                    </button>
+                        <option value="fit">Fit to Screen</option>
+                        <option value="50">50%</option>
+                        <option value="75">75%</option>
+                        <option value="100">100%</option>
+                    </select>
+
+                    <button 
+                       onClick={handlePrint}
+                       className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                       title="Print"
+                   >
+                       <Printer className="w-5 h-5" />
+                   </button>
                    <button 
                      onClick={handleDownload}
                      className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-primary/90 shadow transition-all"
@@ -568,13 +600,13 @@ export default function InvoiceGenerator() {
            {/* Preview Canvas */}
            <div ref={containerRef} className={`flex-1 p-8 bg-zinc-100/50 relative ${autoScale ? 'overflow-hidden' : 'overflow-auto flex justify-center'}`}>
                <div 
-                 className={`bg-white shadow-2xl transition-all origin-center print:shadow-none print:w-full print:max-w-none ${autoScale ? 'absolute top-1/2 left-1/2' : ''}`}
+                 className={`bg-white shadow-2xl transition-all print:shadow-none print:w-full print:max-w-none ${autoScale ? 'absolute top-1/2 left-1/2 origin-center' : 'origin-top my-8'}`}
                  style={autoScale ? { 
                      transform: `translate(-50%, -50%) scale(${scale})`, 
                      width: '794px', 
                      height: '1123px',
                  } : { 
-                     transform: 'scale(1)',
+                     transform: `scale(${scale})`,
                      width: '794px',
                      minHeight: '1123px'
                  }}
