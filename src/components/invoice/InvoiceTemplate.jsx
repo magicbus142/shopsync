@@ -44,7 +44,7 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
         flexDirection: 'column',
         justifyContent: 'flex-start',
         textAlign: 'left',
-        maxWidth: '55%'
+        maxWidth: '65%' // Increased from 55% for long names
     },
     // Right Header: Invoice Label & Details
     headerRight: {
@@ -52,7 +52,7 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
         flexDirection: 'column',
         alignItems: 'flex-end',
         textAlign: 'right',
-        maxWidth: '40%'
+        maxWidth: '35%' // Reduced from 40%
     },
     title: {
         fontSize: '36px',
@@ -64,11 +64,12 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
         lineHeight: '1'
     },
     companyName: {
-        fontSize: '22px',
+        fontSize: '20px', // Reduced from 22px
         fontWeight: 'bold',
         color: '#111827', // Gray-900
         margin: '0 0 6px 0',
-        textTransform: 'uppercase'
+        textTransform: 'uppercase',
+        lineHeight: '1.2' // Better multi-line spacing
     },
     companyAddress: {
         fontSize: '13px',
@@ -215,6 +216,9 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
            {watermarkText || companyDetails?.name || 'COMPANY NAME'}
        </div>
        
+       {/* 0. Company Name (Full Width) */}
+       <h2 style={{...styles.companyName, marginBottom: '16px', fontSize: '28px', borderBottom: 'none'}}>{companyDetails?.name || 'Your Company Name'}</h2>
+
        {/* 1. Header (2-Column Flex) */}
        <div style={styles.headerRow}>
          {/* Left: Company Details */}
@@ -224,8 +228,7 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
                  <img src={logoImage} alt="Logo" style={{ height: '60px', width: 'auto', objectFit: 'contain', marginBottom: '12px' }} />
              )}
 
-             <h2 style={styles.companyName}>{companyDetails?.name || 'Your Company Name'}</h2>
-             <p style={styles.companyAddress}>{companyDetails?.address || 'Your Business Address'}</p>
+             <p style={{...styles.companyAddress, marginTop: 0}}>{companyDetails?.address || 'Your Business Address'}</p>
              <div style={styles.phoneRow}>
                  <Phone size={14} style={{ marginRight: '6px', color: BRAND_COLOR }} />
                  <span style={{ fontWeight: 500 }}>{companyDetails?.phone || '+91 00000 00000'}</span>
