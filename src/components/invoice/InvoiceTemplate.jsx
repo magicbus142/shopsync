@@ -264,26 +264,54 @@ export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern'
            {/* Totals */}
            <div style={styles.totalsContainer}>
              <div style={styles.totalsBox}>
-               <div style={styles.totalRow}>
-                 <span>Subtotal</span>
+               {/* Subtotal */}
+               <div style={{...styles.totalRow, paddingBottom: '4px'}}>
+                 <span style={{ color: '#6b7280' }}>Subtotal:</span>
                  <span style={{ fontWeight: '600', color: '#111827' }}>₹{subtotal.toLocaleString()}</span>
                </div>
                
-               <div style={styles.finalTotalRow}>
-                 <span>Total</span>
-                 <span>₹{total.toLocaleString()}</span>
+               {/* Main Total */}
+               <div style={{...styles.finalTotalRow, borderTop: `1px solid #e5e7eb`, paddingTop: '12px', marginTop: '12px', borderBottom: '1px solid #e5e7eb', paddingBottom: '12px'}}>
+                 <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#111827' }}>Total:</span>
+                 <span style={{ fontWeight: 'bold', fontSize: '16px', color: BRAND_COLOR }}>₹{total.toLocaleString()}</span>
                </div>
 
-               {payments && payments.length > 0 && totalPaid > 0 && (
-                 <div style={{...styles.totalRow, marginTop: '8px', color: '#059669' }}>
-                    <span>Amount Paid</span>
-                    <span style={{ fontWeight: 'bold' }}>₹{totalPaid.toLocaleString()}</span>
-                 </div>
+               {/* Payment History Section */}
+               {payments && payments.length > 0 && (
+                   <div style={{ marginTop: '16px' }}>
+                       <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#6b7280', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>
+                           Payment History
+                       </div>
+                       
+                       {payments.map(p => (
+                           <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#4b5563', marginBottom: '4px' }}>
+                               <span>{p.date}</span>
+                               <span>- ₹{Number(p.amount).toLocaleString()}</span>
+                           </div>
+                       ))}
+                       
+                       <div style={{ borderTop: '1px solid #e5e7eb', margin: '8px 0' }}></div>
+
+                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '8px' }}>
+                          <span style={{ color: '#4b5563' }}>Total Paid:</span>
+                          <span style={{ fontWeight: 'bold', color: '#059669' }}>₹{totalPaid.toLocaleString()}</span>
+                       </div>
+                   </div>
                )}
 
-               <div style={{...styles.totalRow, color: balanceDue > 0 ? '#dc2626' : '#059669', fontWeight: 'bold', fontSize: '14px', marginTop: '4px' }}>
-                 <span>Balance Due</span>
-                 <span>₹{balanceDue.toLocaleString()}</span>
+               {/* Balance Due Highlight Box */}
+               <div style={{ 
+                   backgroundColor: '#fdf2f2', // Light Red Background
+                   borderRadius: '4px', 
+                   padding: '8px', 
+                   display: 'flex', 
+                   justifyContent: 'space-between', 
+                   alignItems: 'center',
+                   marginTop: '8px',
+                   border: '1px solid #fecaca'
+               }}>
+                 <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#111827' }}>Balance Due:</span>
+                 <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#dc2626' }}>₹{balanceDue.toLocaleString()}</span>
                </div>
              </div>
            </div>
