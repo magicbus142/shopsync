@@ -633,8 +633,53 @@ export default function Overview() {
                         </ResponsiveContainer>
                     )}
                 </div>
-            {/* Product Performance Table */}
-            <div className="grid grid-cols-1 gap-6 mb-8">
+            {/* Pending Section */}
+            <div className="grid grid-cols-1 gap-6 pb-8">
+                 {/* Pending Payments */}
+                 <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+                    <div className="flex items-center gap-2 mb-6">
+                        <AlertCircle className="w-5 h-5 text-orange-500" />
+                        <h3 className="text-lg font-semibold">Pending Payments</h3>
+                    </div>
+                    <div className="space-y-3">
+                         {data.pendingPayments.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+                                <CheckCircle className="w-10 h-10 mb-2 opacity-20" />
+                                <p>All payments settled!</p>
+                            </div>
+                         ) : (
+                            data.pendingPayments.map((t) => {
+                                const pendingAmount = Math.max(0, Number(t.amount) - (Number(t.amount_paid) || 0))
+                                return (
+                                    <div key={t.id} className="flex items-center justify-between border-b border-border/50 last:border-0 pb-3 last:pb-0">
+                                        <div>
+                                            <p className="font-medium text-sm">{t.description}</p>
+                                            <div className="flex gap-2 mt-1">
+                                                <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">
+                                                    {t.payment_status}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">{format(parseISO(t.date), 'dd MMM')}</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-bold text-orange-600">₹{pendingAmount.toLocaleString()}</p>
+                                            <p className="text-xs text-muted-foreground">of ₹{Number(t.amount).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                )
+                            })
+                         )}
+                         {data.pendingPayments.length > 0 && (
+                             <Link to="/dashboard/transactions?status=Pending" className="block text-center text-sm text-primary hover:underline pt-2">
+                                 View All Pending
+                             </Link>
+                         )}
+                    </div>
+                 </div>
+            </div>
+
+            {/* Product Performance Table - Moved to Bottom */}
+            <div className="grid grid-cols-1 gap-6 mb-8 w-full">
                  <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
                     <div className="p-6 border-b border-border flex justify-between items-center">
                         <h3 className="text-lg font-semibold">Product Performance (Margins)</h3>
@@ -687,51 +732,6 @@ export default function Overview() {
                                 )}
                             </tbody>
                         </table>
-                    </div>
-                 </div>
-            </div>
-
-            {/* Pending Section */}
-            <div className="grid grid-cols-1 gap-6 pb-8">
-                 {/* Pending Payments */}
-                 <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-                    <div className="flex items-center gap-2 mb-6">
-                        <AlertCircle className="w-5 h-5 text-orange-500" />
-                        <h3 className="text-lg font-semibold">Pending Payments</h3>
-                    </div>
-                    <div className="space-y-3">
-                         {data.pendingPayments.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-                                <CheckCircle className="w-10 h-10 mb-2 opacity-20" />
-                                <p>All payments settled!</p>
-                            </div>
-                         ) : (
-                            data.pendingPayments.map((t) => {
-                                const pendingAmount = Math.max(0, Number(t.amount) - (Number(t.amount_paid) || 0))
-                                return (
-                                    <div key={t.id} className="flex items-center justify-between border-b border-border/50 last:border-0 pb-3 last:pb-0">
-                                        <div>
-                                            <p className="font-medium text-sm">{t.description}</p>
-                                            <div className="flex gap-2 mt-1">
-                                                <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">
-                                                    {t.payment_status}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">{format(parseISO(t.date), 'dd MMM')}</span>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-bold text-orange-600">₹{pendingAmount.toLocaleString()}</p>
-                                            <p className="text-xs text-muted-foreground">of ₹{Number(t.amount).toLocaleString()}</p>
-                                        </div>
-                                    </div>
-                                )
-                            })
-                         )}
-                         {data.pendingPayments.length > 0 && (
-                             <Link to="/dashboard/transactions?status=Pending" className="block text-center text-sm text-primary hover:underline pt-2">
-                                 View All Pending
-                             </Link>
-                         )}
                     </div>
                  </div>
             </div>
