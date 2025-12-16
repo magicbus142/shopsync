@@ -144,15 +144,17 @@ export default function Overview() {
         const netProfit = totalIncome - totalExpenses
     
         // --- Product Performance (Margins) Calculation ---
-        const productStats = {} // { [pid]: { revenue: 0, qty: 0 } }
+        const productStats = {} // { [pid]: { revenue: 0, qty: 0, lastSold: 'YYYY-MM-DD' } }
         const txnIds = safeTx.map(t => t.id)
         
         // A. Legacy/Single Product Transactions
         safeTx.forEach(t => {
             if (t.type === 'income' && t.product_id) {
-                 const current = productStats[t.product_id] || { revenue: 0, qty: 0 }
+                 const current = productStats[t.product_id] || { revenue: 0, qty: 0, lastSold: null }
                  current.revenue += Number(t.amount)
-                 current.qty += 1 
+                 current.qty += 1
+                 // Tx sorted by date asc, so just overwriting keeps the latest
+                 current.lastSold = t.date 
                  productStats[t.product_id] = current
             }
         })
@@ -168,9 +170,18 @@ export default function Overview() {
                 items.forEach(item => {
                     const parent = safeTx.find(t => t.id === item.transaction_id)
                     if (parent && parent.type === 'income') {
-                         const current = productStats[item.product_id] || { revenue: 0, qty: 0 }
+                         const current = productStats[item.product_id] || { revenue: 0, qty: 0, lastSold: null }
                          current.revenue += Number(item.total_price)
                          current.qty += Number(item.quantity)
+                         
+                         // Update lastSold if this tx is newer or same (relying on sort order of parent array)
+                         // Parent txs are sorted, so we can trust current.lastSold update logic if we process in order.
+                         // items processing might not be in order relative to parents? 
+                         // Better safe:
+                         if (!current.lastSold || new Date(parent.date) > new Date(current.lastSold)) {
+                             current.lastSold = parent.date
+                         }
+
                          productStats[item.product_id] = current
                     }
                 })
@@ -195,7 +206,8 @@ export default function Overview() {
                  buyingPrice,
                  cost,
                  margin,
-                 marginPercent
+                 marginPercent,
+                 lastSold: stats.lastSold
              }
         })
         .filter(Boolean)
@@ -638,6 +650,7 @@ export default function Overview() {
                                     <th className="px-6 py-3 text-right">Est. Cost</th>
                                     <th className="px-6 py-3 text-right">Margin</th>
                                     <th className="px-6 py-3 text-right">Margin %</th>
+                                    <th className="px-6 py-3 text-right">Last Sold</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
@@ -660,11 +673,14 @@ export default function Overview() {
                                                     {Math.round(prod.marginPercent)}%
                                                 </div>
                                             </td>
+                                            <td className="px-6 py-4 text-right text-muted-foreground text-xs">
+                                                {prod.lastSold ? format(parseISO(prod.lastSold), 'dd MMM yyyy') : '-'}
+                                            </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" className="px-6 py-8 text-center text-muted-foreground">
+                                        <td colSpan="7" className="px-6 py-8 text-center text-muted-foreground">
                                             No sales data available for margin calculation.
                                         </td>
                                     </tr>
