@@ -97,7 +97,8 @@ export default function InvoiceGenerator() {
   const [showTerms, setShowTerms] = useState(true)
   const [showLogo, setShowLogo] = useState(true) 
   const [logoImage, setLogoImage] = useState(null)
-  const [headerAlign, setHeaderAlign] = useState('left') // New State
+  const [headerAlign, setHeaderAlign] = useState('left')
+  const [templateType, setTemplateType] = useState('modern') // 'modern', 'classic', 'minimal'
   const [paymentDetails, setPaymentDetails] = useState({
       show: false,
       phonePe: '',
@@ -480,8 +481,36 @@ export default function InvoiceGenerator() {
                         <input type="text" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Customer Name" />
                         <input type="text" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Phone Number" />
                         <textarea value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Billing Address" rows={2} />
-                     </div>
-               </AccordionItem>
+                        </div>
+                    </AccordionItem>
+
+                    <AccordionItem 
+                        title="Visual Style" 
+                        isOpen={openSections.includes('style')}
+                        onToggle={() => toggleSection('style')}
+                        icon={<Monitor size={18} />}
+                    >
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Template Style</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {['modern', 'classic', 'minimal'].map((type) => (
+                                        <button
+                                            key={type}
+                                            onClick={() => setTemplateType(type)}
+                                            className={`px-3 py-2 text-sm border rounded-md capitalize transition-colors ${
+                                                templateType === type 
+                                                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 font-medium' 
+                                                    : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {type}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </AccordionItem>
 
                {/* 4. Line Items */}
                <AccordionItem 
@@ -663,13 +692,13 @@ export default function InvoiceGenerator() {
                      minHeight: '1123px'
                  }}
                >
-                   <InvoiceTemplate data={templateData} />
+                   <InvoiceTemplate data={templateData} templateType={templateType} />
                </div>
            </div>
             
             {/* Hidden component for Print/PDF */}
            <div style={{ position: 'absolute', top: -10000, left: -10000 }}>
-                <InvoiceTemplate ref={componentRef} data={templateData} />
+                <InvoiceTemplate ref={componentRef} data={templateData} templateType={templateType} />
            </div>
 
        </div>

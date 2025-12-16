@@ -3,29 +3,33 @@ import { Phone } from 'lucide-react';
 import phonePeLogo from '../../assets/phonepe.png'
 import googlePayLogo from '../../assets/google-pay.png'
 
-// Using forwardRef to be compatible with react-to-print
-export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
+export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern' }, ref) => {
   const { 
     customer, items, invoiceDate, invoiceNumber, subtotal, 
     total, payments = [], totalPaid = 0, balanceDue = 0, 
     showSignature, signatureImage, companyDetails, 
     showTerms, paymentDetails, showLogo, logoImage,
-    watermarkText, watermarkSize = 80, headerAlign = 'left',
-    documentTitle = 'INVOICE' // Default to INVOICE if not provided
+    watermarkText, watermarkSize = 80, 
+    documentTitle = 'INVOICE'
   } = data;
 
-  const BRAND_COLOR = '#4F46E5'; // Indigo-600
+  // Theme Config
+  const isClassic = templateType === 'classic';
+  const isMinimal = templateType === 'minimal';
+  
+  const BRAND_COLOR = isClassic ? '#111827' : '#4F46E5'; // Black for Classic, Indigo for others
+  const FONT_FAMILY = isClassic ? '"Times New Roman", serif' : 'Helvetica, Arial, sans-serif';
 
-  // Safe Inline Styles for PDF Generation (avoiding Tailwind classes)
+  // Dynamic Styles
   const styles = {
     container: {
         width: '210mm',
         minHeight: '297mm',
         padding: '32px',
         margin: '0 auto',
-        fontFamily: 'Helvetica, Arial, sans-serif', // Standard clean font
+        fontFamily: FONT_FAMILY,
         backgroundColor: '#ffffff',
-        color: '#1f2937', // Gray-800
+        color: '#1f2937', 
         boxSizing: 'border-box',
         position: 'relative', 
         overflow: 'hidden' 
@@ -36,44 +40,43 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
         alignItems: 'flex-start',
         marginBottom: '28px',
         paddingBottom: '20px',
-        borderBottom: `2px solid ${BRAND_COLOR}`
+        borderBottom: isMinimal ? 'none' : `2px solid ${BRAND_COLOR}`
     },
-    // Left Header: Company Info
     headerLeft: {
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'flex-start',
         textAlign: 'left',
-        maxWidth: '65%' // Increased from 55% for long names
+        maxWidth: '60%'
     },
-    // Right Header: Invoice Label & Details
     headerRight: {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-end',
         textAlign: 'right',
-        maxWidth: '35%' // Reduced from 40%
+        maxWidth: '40%'
     },
     title: {
-        fontSize: '36px',
+        fontSize: isClassic ? '42px' : '36px',
         fontWeight: '900',
         textTransform: 'uppercase',
-        letterSpacing: '0.05em',
+        letterSpacing: isMinimal ? '0.1em' : '0.05em',
         color: BRAND_COLOR,
         margin: '0 0 8px 0',
         lineHeight: '1'
     },
     companyName: {
-        fontSize: '20px', // Reduced from 22px
+        fontSize: isClassic ? '28px' : '24px', 
         fontWeight: 'bold',
-        color: '#111827', // Gray-900
-        margin: '0 0 6px 0',
+        color: '#111827', 
+        margin: '0 0 8px 0',
         textTransform: 'uppercase',
-        lineHeight: '1.2' // Better multi-line spacing
+        lineHeight: '1.2',
+        whiteSpace: 'normal',
+        wordBreak: 'break-word'
     },
     companyAddress: {
         fontSize: '13px',
-        color: '#4b5563', // Gray-600
+        color: '#4b5563',
         margin: '0 0 8px 0',
         whiteSpace: 'pre-line',
         lineHeight: '1.4'
@@ -85,18 +88,19 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
         color: '#4b5563',
         marginTop: '2px'
     },
-    // Customer Section
     billedToSection: {
         marginTop: '24px',
         marginBottom: '32px',
         display: 'flex',
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        borderBottom: isMinimal ? `1px solid #e5e7eb` : 'none', // Minimal separator
+        paddingBottom: isMinimal ? '24px' : '0'
     },
     sectionLabel: {
         fontSize: '11px',
         fontWeight: 'bold',
         textTransform: 'uppercase',
-        color: '#6b7280', // Gray-500
+        color: '#6b7280',
         marginBottom: '6px',
         letterSpacing: '0.05em'
     },
@@ -104,12 +108,8 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
         fontSize: '16px',
         fontWeight: 'bold',
         color: '#111827',
-        marginBottom: '4px'
-    },
-    customerDetails: {
-        fontSize: '13px',
-        color: '#4b5563',
-        lineHeight: '1.4'
+        marginBottom: '4px',
+        fontFamily: isClassic ? '"Times New Roman", serif' : 'inherit'
     },
     invoiceMetaRow: {
         display: 'flex',
@@ -117,48 +117,38 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
         fontSize: '13px',
         marginBottom: '4px'
     },
-    metaLabel: {
-        color: '#6b7280',
-        marginRight: '8px',
-        fontWeight: '500'
-    },
-    metaValue: {
-        fontWeight: 'bold',
-        color: '#111827'
-    },
-    // Table
+    // Table Styles
     table: {
         width: '100%',
         marginBottom: '24px',
         borderCollapse: 'collapse',
-        tableLayout: 'auto' // Dynamic widths
+        tableLayout: 'auto',
+        border: isClassic ? '1px solid #000' : 'none'
     },
     th: {
         padding: '12px',
-        textAlign: 'left', // Default
+        textAlign: 'left',
         fontSize: '11px',
         fontWeight: 'bold',
         textTransform: 'uppercase',
-        backgroundColor: '#f3f4f6', // Light Gray Header Bg
-        color: BRAND_COLOR, // Brand Color Text
-        borderBottom: `1px solid #e5e7eb`
+        backgroundColor: isMinimal ? 'transparent' : (isClassic ? '#e5e7eb' : '#f3f4f6'), 
+        color: BRAND_COLOR,
+        borderBottom: isClassic ? '1px solid #000' : `1px solid #e5e7eb`,
+        borderRight: isClassic ? '1px solid #000' : 'none'
     },
     td: {
         padding: '12px',
         fontSize: '13px',
-        borderBottom: '1px solid #f3f4f6',
+        borderBottom: isClassic ? '1px solid #000' : (isMinimal ? '1px solid #f3f4f6' : '1px solid #f3f4f6'),
+        borderRight: isClassic ? '1px solid #000' : 'none',
         color: '#374151',
-        verticalAlign: 'top' // Ensure multiline text aligns to top
+        verticalAlign: 'top',
+        fontFamily: isClassic ? '"Times New Roman", serif' : 'inherit'
     },
-    // Totals
     totalsContainer: {
         display: 'flex',
         justifyContent: 'flex-end',
         marginTop: '16px'
-    },
-    totalsBox: {
-        width: '45%',
-        paddingTop: '8px'
     },
     totalRow: {
         display: 'flex',
@@ -171,37 +161,29 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
         display: 'flex',
         justifyContent: 'space-between',
         padding: '12px 0 0 0',
-        borderTop: `2px solid ${BRAND_COLOR}`,
+        borderTop: isMinimal ? 'none' : `2px solid ${BRAND_COLOR}`, // Minimal no border
         marginTop: '8px',
-        fontSize: '16px',
+        fontSize: isMinimal ? '20px' : '16px',
         fontWeight: 'bold',
         color: '#111827'
     },
-    // Footer
     footer: {
         marginTop: 'auto',
         paddingTop: '40px',
-        borderTop: '1px solid #e5e7eb',
+        borderTop: isMinimal ? 'none' : '1px solid #e5e7eb',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-end'
-    },
-    termsBox: {
-        width: '55%'
-    },
-    signatoryBox: {
-        textAlign: 'center',
-        paddingBottom: '8px'
     },
     watermark: {
         position: 'absolute',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%) rotate(-45deg)',
-        fontSize: `${watermarkSize}px`, // Dynamic Size
+        fontSize: `${watermarkSize}px`,
         fontWeight: 'bold',
-        color: '#9ca3af', // Gray-400
-        opacity: '0.08',   // Very faint
+        color: '#9ca3af',
+        opacity: '0.08',
         whiteSpace: 'nowrap',
         pointerEvents: 'none',
         zIndex: 0,
@@ -211,23 +193,17 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
 
   return (
     <div ref={ref} style={styles.container}>
-       {/* Watermark */}
        <div style={styles.watermark}>
            {watermarkText || companyDetails?.name || 'COMPANY NAME'}
        </div>
        
-       {/* 0. Company Name (Full Width) */}
-       <h2 style={{...styles.companyName, marginBottom: '16px', fontSize: '28px', borderBottom: 'none'}}>{companyDetails?.name || 'Your Company Name'}</h2>
-
-       {/* 1. Header (2-Column Flex) */}
+       {/* Header */}
        <div style={styles.headerRow}>
-         {/* Left: Company Details */}
          <div style={styles.headerLeft}>
-             {/* Logo - Embedded if exists */}
              {showLogo && logoImage && (
                  <img src={logoImage} alt="Logo" style={{ height: '60px', width: 'auto', objectFit: 'contain', marginBottom: '12px' }} />
              )}
-
+             <h2 style={styles.companyName}>{companyDetails?.name || 'Your Company Name'}</h2>
              <p style={{...styles.companyAddress, marginTop: 0}}>{companyDetails?.address || 'Your Business Address'}</p>
              <div style={styles.phoneRow}>
                  <Phone size={14} style={{ marginRight: '6px', color: BRAND_COLOR }} />
@@ -235,10 +211,8 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
              </div>
          </div>
 
-         {/* Right: Invoice Label & Meta */}
          <div style={styles.headerRight}>
              <h1 style={styles.title}>{documentTitle}</h1>
-             
              <div style={{ marginTop: '12px' }}>
                  <div style={styles.invoiceMetaRow}>
                      <span style={styles.metaLabel}>Invoice No:</span>
@@ -248,12 +222,11 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
                      <span style={styles.metaLabel}>Date:</span>
                      <span style={styles.metaValue}>{invoiceDate}</span>
                  </div>
-                 {/* Optional Due Date could go here if in data */}
              </div>
          </div>
        </div>
 
-       {/* 2. Customer & Billed To Section */}
+       {/* Billed To */}
        <div style={styles.billedToSection}>
          <div>
            <div style={styles.sectionLabel}>Billed To:</div>
@@ -263,19 +236,15 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
          </div>
        </div>
 
-       {/* 3. Data Table (Grid) */}
+       {/* Table */}
        <div style={{ flex: 1 }}> 
            <table style={styles.table}>
              <thead>
                <tr>
-                 {/* Item Description (Left, 40%) */}
-                 <th style={{...styles.th, width: '40%', borderTopLeftRadius: '4px'}}>Item Description</th>
-                 {/* Qty (Center, 15%) */}
+                 <th style={{...styles.th, width: '40%', borderTopLeftRadius: isClassic ? 0 : '4px'}}>Item Description</th>
                  <th style={{...styles.th, width: '15%', textAlign: 'center'}}>Qty</th>
-                 {/* Price (Right, 20%) */}
                  <th style={{...styles.th, width: '20%', textAlign: 'right'}}>Price</th>
-                 {/* Amount (Right, 25%) */}
-                 <th style={{...styles.th, width: '25%', textAlign: 'right', borderTopRightRadius: '4px'}}>Amount</th>
+                 <th style={{...styles.th, width: '25%', textAlign: 'right', borderTopRightRadius: isClassic ? 0 : '4px', borderRight: isClassic ? '1px solid #000' : 'none'}}>Amount</th>
                </tr>
              </thead>
              <tbody>
@@ -283,25 +252,22 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
                  <tr key={index}>
                    <td style={styles.td}>
                        <div style={{ fontWeight: '600', color: '#111827' }}>{item.name}</div>
-                       {/* Description could go here if added later */}
                    </td>
                    <td style={{...styles.td, textAlign: 'center'}}>{item.quantity}</td>
                    <td style={{...styles.td, textAlign: 'right'}}>₹{Number(item.price).toLocaleString()}</td>
-                   <td style={{...styles.td, textAlign: 'right', fontWeight: 'bold'}}>₹{(Number(item.quantity) * Number(item.price)).toLocaleString()}</td>
+                   <td style={{...styles.td, textAlign: 'right', fontWeight: 'bold', borderRight: isClassic ? '1px solid #000' : 'none'}}>₹{(Number(item.quantity) * Number(item.price)).toLocaleString()}</td>
                  </tr>
                ))}
-               {/* Empty min-height filler if needed, but flex 1 handles it mostly */}
              </tbody>
            </table>
 
-           {/* 3.1 Totals (Bottom Right) */}
+           {/* Totals */}
            <div style={styles.totalsContainer}>
              <div style={styles.totalsBox}>
                <div style={styles.totalRow}>
                  <span>Subtotal</span>
                  <span style={{ fontWeight: '600', color: '#111827' }}>₹{subtotal.toLocaleString()}</span>
                </div>
-               {/* Tax/Discount placeholders would be here */}
                
                <div style={styles.finalTotalRow}>
                  <span>Total</span>
@@ -323,12 +289,9 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
            </div>
        </div>
 
-       {/* 4. Footer (Terms Left, Sign Right) */}
+       {/* Footer */}
        <div style={styles.footer}>
-          
-          {/* Terms & Payment Info */}
           <div style={styles.termsBox}>
-             {/* Payment Badges (Flex Row) */}
              {paymentDetails.show && (
                  <div style={{ marginBottom: '20px' }}>
                       <div style={styles.sectionLabel}>Payment Options</div>
@@ -366,7 +329,6 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
              )}
           </div>
 
-          {/* Signature */}
           <div style={styles.signatoryBox}>
              {showSignature && (
                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100px' }}>
