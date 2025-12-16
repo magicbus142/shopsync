@@ -24,7 +24,8 @@ export default function Overview() {
     workerBarData: [],
     inventoryCount: 0,
     workersCount: 0,
-    pendingPayments: []
+    pendingPayments: [],
+    productPerformanceData: []
   })
   
   // Date Filter State
@@ -142,18 +143,21 @@ export default function Overview() {
         const totalExpenses = safeTx.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0)
         const netProfit = totalIncome - totalExpenses
     
-        // --- Product Revenue Calculation ---
-        const productRevenueMap = {}
+        // --- Product Performance (Margins) Calculation ---
+        const productStats = {} // { [pid]: { revenue: 0, qty: 0 } }
         const txnIds = safeTx.map(t => t.id)
         
         // A. Legacy/Single Product Transactions
         safeTx.forEach(t => {
             if (t.type === 'income' && t.product_id) {
-                 productRevenueMap[t.product_id] = (productRevenueMap[t.product_id] || 0) + Number(t.amount)
+                 const current = productStats[t.product_id] || { revenue: 0, qty: 0 }
+                 current.revenue += Number(t.amount)
+                 current.qty += 1 
+                 productStats[t.product_id] = current
             }
         })
     
-        // B. Multi-item Transactions (Fetch items for these transactions)
+        // B. Multi-item Transactions
         if (txnIds.length > 0) {
             const { data: items } = await supabase
                 .from('transaction_items')
@@ -164,21 +168,45 @@ export default function Overview() {
                 items.forEach(item => {
                     const parent = safeTx.find(t => t.id === item.transaction_id)
                     if (parent && parent.type === 'income') {
-                         productRevenueMap[item.product_id] = (productRevenueMap[item.product_id] || 0) + Number(item.total_price)
+                         const current = productStats[item.product_id] || { revenue: 0, qty: 0 }
+                         current.revenue += Number(item.total_price)
+                         current.qty += Number(item.quantity)
+                         productStats[item.product_id] = current
                     }
                 })
             }
         }
     
-        const productRevenueData = Object.keys(productRevenueMap).map(pid => {
+        const productPerformanceData = Object.keys(productStats).map(pid => {
              const product = (products || []).find(p => p.id === pid)
+             if (!product) return null
+             
+             const stats = productStats[pid]
+             const buyingPrice = Number(product.buying_price) || 0
+             const cost = stats.qty * buyingPrice
+             const margin = stats.revenue - cost
+             const marginPercent = stats.revenue > 0 ? (margin / stats.revenue) * 100 : 0
+             
              return {
-                 name: product ? product.name : 'Unknown',
-                 revenue: productRevenueMap[pid]
+                 id: pid,
+                 name: product.name,
+                 revenue: stats.revenue,
+                 qty: stats.qty,
+                 buyingPrice,
+                 cost,
+                 margin,
+                 marginPercent
              }
         })
-        .sort((a, b) => b.revenue - a.revenue)
-        .slice(0, 5) // Top 5
+        .filter(Boolean)
+        .sort((a, b) => b.margin - a.margin) // Sort by Margin
+        .slice(0, 5) // Top 5 for charts, verify if table needs more later
+        
+        // Reuse for Chart (Top 5 revenue)
+        const productRevenueData = productPerformanceData
+            .map(p => ({ name: p.name, revenue: p.revenue }))
+            .sort((a, b) => b.revenue - a.revenue)
+            .slice(0, 5)
         // -----------------------------------
     
         // 5. Process Income Trend (Area Chart)
@@ -242,6 +270,7 @@ export default function Overview() {
           inventoryBarData,
           workerBarData,
           productRevenueData, 
+          productPerformanceData,
           inventoryCount: (products || []).length,
           workersCount: (workers || []).length,
           pendingPayments: pendingT || []
@@ -592,6 +621,60 @@ export default function Overview() {
                         </ResponsiveContainer>
                     )}
                 </div>
+            {/* Product Performance Table */}
+            <div className="grid grid-cols-1 gap-6 mb-8">
+                 <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+                    <div className="p-6 border-b border-border flex justify-between items-center">
+                        <h3 className="text-lg font-semibold">Product Performance (Margins)</h3>
+                        <Link to="/dashboard/inventory" className="text-sm text-primary hover:underline">View All Inventory</Link>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-muted/50 text-muted-foreground font-medium">
+                                <tr>
+                                    <th className="px-6 py-3">Product</th>
+                                    <th className="px-6 py-3 text-right">Qty Sold</th>
+                                    <th className="px-6 py-3 text-right">Revenue</th>
+                                    <th className="px-6 py-3 text-right">Est. Cost</th>
+                                    <th className="px-6 py-3 text-right">Margin</th>
+                                    <th className="px-6 py-3 text-right">Margin %</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                                {data.productPerformanceData && data.productPerformanceData.length > 0 ? (
+                                    data.productPerformanceData.map((prod) => (
+                                        <tr key={prod.id} className="hover:bg-muted/30 transition-colors">
+                                            <td className="px-6 py-4 font-medium text-foreground">{prod.name}</td>
+                                            <td className="px-6 py-4 text-right text-muted-foreground">{prod.qty}</td>
+                                            <td className="px-6 py-4 text-right">₹{prod.revenue.toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-right text-muted-foreground">₹{prod.cost.toLocaleString()}</td>
+                                            <td className={`px-6 py-4 text-right font-bold ${prod.margin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                ₹{prod.margin.toLocaleString()}
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                    prod.marginPercent >= 20 ? 'bg-green-100 text-green-700' : 
+                                                    prod.marginPercent > 0 ? 'bg-yellow-100 text-yellow-700' :
+                                                    'bg-red-100 text-red-700'
+                                                }`}>
+                                                    {Math.round(prod.marginPercent)}%
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="6" className="px-6 py-8 text-center text-muted-foreground">
+                                            No sales data available for margin calculation.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                 </div>
+            </div>
+
             {/* Pending Section */}
             <div className="grid grid-cols-1 gap-6 pb-8">
                  {/* Pending Payments */}
