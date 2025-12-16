@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useReactToPrint } from 'react-to-print'
-import { Plus, Trash2, Printer, Save, Download, FileText, ShoppingBag, Upload, User, Phone, MapPin, Calendar, Hash, CreditCard, Store, Smartphone, Monitor } from 'lucide-react'
+import { Plus, Trash2, Printer, Save, Download, FileText, ShoppingBag, Upload, User, Phone, MapPin, Calendar, Hash, CreditCard, Store, Smartphone, Monitor, Share2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { format } from 'date-fns'
@@ -95,8 +95,9 @@ export default function InvoiceGenerator() {
 
   // Customization State
   const [showTerms, setShowTerms] = useState(true)
-  const [showLogo, setShowLogo] = useState(true) // New State
-  const [logoImage, setLogoImage] = useState(null) // New State
+  const [showLogo, setShowLogo] = useState(true) 
+  const [logoImage, setLogoImage] = useState(null)
+  const [headerAlign, setHeaderAlign] = useState('left') // New State
   const [paymentDetails, setPaymentDetails] = useState({
       show: false,
       phonePe: '',
@@ -244,11 +245,7 @@ export default function InvoiceGenerator() {
           margin: 0,
           filename: `Invoice-${invoiceNumber}.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { 
-            scale: 2, 
-            useCORS: true,
-            ignoreElements: (element) => element.tagName === 'LINK' || element.tagName === 'STYLE'
-          },
+          html2canvas: { scale: 2, useCORS: true },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       }
       
@@ -261,8 +258,62 @@ export default function InvoiceGenerator() {
       })
   }
 
+  const handleWhatsAppShare = async () => {
+      const shareText = `*Invoice #${invoiceNumber}*\nDate: ${format(new Date(invoiceDate), 'dd MMM yyyy')}\nBilled To: ${customer.name}\nTotal Amount: ₹${total.toLocaleString()}\n\nPlease find the invoice PDF attached.`
+
+      // 1. Desktop / No Native Share: Fast Path
+      // We skip Blob generation to avoid lag and popup blockers
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+      if (!navigator.share || !navigator.canShare || !isMobile) {
+          handleDownload()
+          const url = `https://wa.me/?text=${encodeURIComponent(shareText)}`
+          window.open(url, '_blank')
+          toast.info("Opening WhatsApp... Please drag the downloaded PDF into the chat.")
+          return
+      }
+
+      // 2. Mobile / Native Share: Generate Blob to attach
+      try {
+          toast.loading("Preparing PDF for WhatsApp...")
+          
+          const element = componentRef.current
+          const opt = {
+              margin: 0,
+              filename: `Invoice-${invoiceNumber}.pdf`,
+              image: { type: 'jpeg', quality: 0.98 },
+              html2canvas: { scale: 2, useCORS: true },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          }
+
+          const worker = html2pdf().set(opt).from(element).toPdf().get('pdf')
+          const pdfBlob = await worker.output('blob')
+          const pdfFile = new File([pdfBlob], `Invoice-${invoiceNumber}.pdf`, { type: 'application/pdf' })
+
+          if (navigator.canShare({ files: [pdfFile] })) {
+               await navigator.share({
+                   files: [pdfFile],
+                   title: `Invoice-${invoiceNumber}`,
+                   text: shareText
+               })
+               toast.dismiss()
+               toast.success("Shared successfully!")
+          } else {
+              throw new Error("Device doesn't support file sharing")
+          }
+
+      } catch (error) {
+          console.error("Mobile share failed, falling back", error)
+          toast.dismiss()
+          // Fallback to desktop method if native share creates blob but fails to share
+          handleDownload()
+          const url = `https://wa.me/?text=${encodeURIComponent(shareText)}`
+          window.open(url, '_blank')
+      }
+  }
+
   const templateData = {
      documentTitle: documentType, // Passing dynamic title
+     headerAlign, // Pass to template
      customer,
      items,
      invoiceDate: format(new Date(invoiceDate), 'dd MMM yyyy'),
@@ -284,7 +335,7 @@ export default function InvoiceGenerator() {
   };
 
   return (
-    <div className="flex flex-col xl:flex-row h-[calc(100vh-6rem)] gap-6">
+    <div className="flex flex-col xl:flex-row xl:h-[calc(100vh-6rem)] h-auto gap-6 transition-all duration-300 ease-in-out">
        
        {/* LEFT: EDITOR SECTION (Scrollable) */}
        <div className="w-full xl:w-[450px] flex flex-col h-full bg-background rounded-2xl border border-border overflow-hidden shadow-sm">
@@ -324,9 +375,10 @@ export default function InvoiceGenerator() {
                             <option value="QUOTATION">QUOTATION</option>
                             <option value="RECEIPT">RECEIPT</option>
                         </select>
-                     </div>
-
+                      </div>
                      <hr className="border-border" />
+
+
 
                      {/* Logo Toggle */}
                      <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
@@ -582,11 +634,11 @@ export default function InvoiceGenerator() {
                     </select>
 
                     <button 
-                       onClick={handlePrint}
-                       className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-                       title="Print"
+                       onClick={handleWhatsAppShare}
+                       className="p-2 text-[#25D366] hover:bg-[#25D366]/10 rounded-lg transition-colors"
+                       title="Share on WhatsApp"
                    >
-                       <Printer className="w-5 h-5" />
+                       <Share2 className="w-5 h-5" />
                    </button>
                    <button 
                      onClick={handleDownload}

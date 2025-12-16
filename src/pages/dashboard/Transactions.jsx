@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowUpRight, ArrowDownLeft, Plus, X, Calendar, Package, Users, Search, Filter, Download, Pencil, Trash2, Eye, IndianRupee } from 'lucide-react'
+import { ArrowUpRight, ArrowDownLeft, Plus, X, Calendar, Package, Users, Search, Filter, Download, Pencil, Trash2, Eye, IndianRupee, Share2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useOrganization } from '../../context/OrganizationContext'
 import { useToast } from '../../context/ToastContext'
@@ -366,9 +366,30 @@ export default function Transactions() {
 
   // Filter Logic
   const filteredTransactions = transactions.filter(t => {
+      // Search
+      if (search) {
+          const lowerSearch = search.toLowerCase()
+          const matches = 
+            t.description?.toLowerCase().includes(lowerSearch) ||
+            t.category?.toLowerCase().includes(lowerSearch) ||
+            t.party_name?.toLowerCase().includes(lowerSearch) ||
+            String(t.amount).includes(lowerSearch)
+          
+          if (!matches) return false
+      }
+
       if (filterType !== 'all' && t.type !== filterType) return false
       if (filterStatus !== 'all' && t.payment_status !== filterStatus) return false
-      // Add more filters as needed
+      if (filterMethod !== 'all' && t.payment_method !== filterMethod) return false
+      
+      // Date Range
+      if (dateRange?.from && dateRange?.to) {
+          const tDate = parseISO(t.date)
+          const start = startOfDay(dateRange.from)
+          const end = endOfDay(dateRange.to)
+          if (!isWithinInterval(tDate, { start, end })) return false
+      }
+
       return true
   })
   
@@ -388,7 +409,7 @@ export default function Transactions() {
 
   return (
     <div className="space-y-6 relative min-h-[80vh]">
-      <div className="flex justify-between items-center pr-14 md:pr-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pr-14 md:pr-0">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Transactions</h2>
           <p className="text-muted-foreground">Manage your finances</p>
@@ -418,6 +439,69 @@ export default function Transactions() {
           <p className="text-sm text-muted-foreground mb-1">Balance</p>
           <p className="text-2xl font-bold">₹{(totalIncome - totalExpense).toLocaleString()}</p>
         </div>
+      </div>
+
+      {/* Search & Filters Toolbar */}
+      <div className="bg-card border border-border rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm">
+          {/* Search */}
+          <div className="relative w-full md:w-96">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input 
+                    type="text" 
+                    placeholder="Search transactions..." 
+                    className="w-full pl-9 pr-4 py-2 bg-background border border-input rounded-lg text-sm focus:ring-1 focus:ring-primary"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
+          </div>
+
+                {/* Filters Container */}
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    {/* Date Inputs */}
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 bg-background border border-input rounded-lg px-2 py-1">
+                            <span className="text-sm font-medium whitespace-nowrap text-muted-foreground">Start Date</span>
+                            <input 
+                                type="date" 
+                                className="bg-transparent border-none text-sm focus:ring-0 p-1"
+                                value={dateRange.from || ''}
+                                onChange={(e) => setDateRange({...dateRange, from: e.target.value})}
+                            />
+                        </div>
+                        <div className="flex items-center gap-2 bg-background border border-input rounded-lg px-2 py-1">
+                            <span className="text-sm font-medium whitespace-nowrap text-muted-foreground">End Date</span>
+                            <input 
+                                type="date" 
+                                className="bg-transparent border-none text-sm focus:ring-0 p-1"
+                                value={dateRange.to || ''}
+                                onChange={(e) => setDateRange({...dateRange, to: e.target.value})}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Status Filter */}
+                    <select 
+                        className="h-10 px-3 py-2 bg-background border border-input rounded-lg text-sm min-w-[120px]"
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                    >
+                        <option value="all">All Status</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Partial">Partial</option>
+                    </select>
+
+                    {/* Type Filter */}
+                    <select 
+                        className="h-10 px-3 py-2 bg-background border border-input rounded-lg text-sm min-w-[120px]"
+                        value={filterType}
+                        onChange={(e) => setFilterType(e.target.value)}
+                    >
+                        <option value="all">All Types</option>
+                        <option value="income">Income</option>
+                        <option value="expense">Expense</option>
+                    </select>
+                </div>
       </div>
 
       {/* Transactions List (Simplified for brevity, assuming existing list structure with updated badges) */}
@@ -494,6 +578,22 @@ export default function Transactions() {
                         onAddPayment={handleAddPartialPayment}
                         onRemovePayment={handleRemovePartialPayment}
                     />
+
+                    {/* Quick Actions */}
+                    <div className="flex gap-4">
+                        <button
+                            onClick={() => {
+                                const t = viewTransaction
+                                const itemsText = viewItems.map(i => `${i.quantity} x ${getProductName(i.product_id)}`).join(', ')
+                                const text = `*Invoice Details*\n\nTransaction ID: #${t.id}\nDate: ${format(new Date(t.date), 'dd MMM yyyy')}\nCategory: ${t.category}\n\n*Items:*\n${itemsText || 'N/A'}\n\n*Total Amount:* ₹${Number(t.amount).toLocaleString()}\n*Status:* ${t.payment_status}\n\nThank you for your business!`
+                                const url = `https://wa.me/?text=${encodeURIComponent(text)}`
+                                window.open(url, '_blank')
+                            }}
+                            className="flex-1 py-3 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-lg"
+                        >
+                            <Share2 className="w-5 h-5" /> Share Invoice on WhatsApp
+                        </button>
+                    </div>
 
                     <AuditHistory tableName="transactions" recordId={viewTransaction.id} />
                 </div>

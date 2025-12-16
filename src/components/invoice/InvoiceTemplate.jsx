@@ -1,4 +1,5 @@
 import React from 'react';
+import { Phone } from 'lucide-react';
 import phonePeLogo from '../../assets/phonepe.png'
 import googlePayLogo from '../../assets/google-pay.png'
 
@@ -9,9 +10,11 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
     total, payments = [], totalPaid = 0, balanceDue = 0, 
     showSignature, signatureImage, companyDetails, 
     showTerms, paymentDetails, showLogo, logoImage,
-    watermarkText, watermarkSize = 80,
+    watermarkText, watermarkSize = 80, headerAlign = 'left',
     documentTitle = 'INVOICE' // Default to INVOICE if not provided
   } = data;
+
+  const BRAND_COLOR = '#4F46E5'; // Indigo-600
 
   // Safe Inline Styles for PDF Generation (avoiding Tailwind classes)
   const styles = {
@@ -20,85 +23,174 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
         minHeight: '297mm',
         padding: '32px',
         margin: '0 auto',
-        fontFamily: 'Arial, sans-serif',
+        fontFamily: 'Helvetica, Arial, sans-serif', // Standard clean font
         backgroundColor: '#ffffff',
-        color: '#111827',
+        color: '#1f2937', // Gray-800
         boxSizing: 'border-box',
-        position: 'relative', // For watermark positioning
-        overflow: 'hidden' // Ensure watermark doesn't spill out
+        position: 'relative', 
+        overflow: 'hidden' 
     },
-    header: {
-        marginBottom: '24px',
-        paddingBottom: '16px',
-        borderBottom: '2px solid #1f2937',
+    headerRow: {
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'flex-start'
+        alignItems: 'flex-start',
+        marginBottom: '28px',
+        paddingBottom: '20px',
+        borderBottom: `2px solid ${BRAND_COLOR}`
+    },
+    // Left Header: Company Info
+    headerLeft: {
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-start',
+        textAlign: 'left',
+        maxWidth: '55%'
+    },
+    // Right Header: Invoice Label & Details
+    headerRight: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        textAlign: 'right',
+        maxWidth: '40%'
     },
     title: {
-        fontSize: '30px',
-        fontWeight: 'bold',
+        fontSize: '36px',
+        fontWeight: '900',
         textTransform: 'uppercase',
-        letterSpacing: '0.025em',
-        color: '#111827',
-        margin: 0
+        letterSpacing: '0.05em',
+        color: BRAND_COLOR,
+        margin: '0 0 8px 0',
+        lineHeight: '1'
     },
     companyName: {
-        fontSize: '18px',
-        marginTop: '4px',
+        fontSize: '22px',
+        fontWeight: 'bold',
+        color: '#111827', // Gray-900
+        margin: '0 0 6px 0',
+        textTransform: 'uppercase'
+    },
+    companyAddress: {
+        fontSize: '13px',
+        color: '#4b5563', // Gray-600
+        margin: '0 0 8px 0',
+        whiteSpace: 'pre-line',
+        lineHeight: '1.4'
+    },
+    phoneRow: {
+        display: 'flex', 
+        alignItems: 'center', 
+        fontSize: '13px', 
         color: '#4b5563',
-        margin: '4px 0 0 0'
+        marginTop: '2px'
     },
-    textSmall: {
-        fontSize: '14px',
-        color: '#6b7280',
-        margin: '0'
-    },
-    flexBetween: {
+    // Customer Section
+    billedToSection: {
+        marginTop: '24px',
+        marginBottom: '32px',
         display: 'flex',
-        justifyContent: 'space-between',
-        marginBottom: '32px'
+        justifyContent: 'space-between'
     },
-    sectionTitle: {
-        fontSize: '12px',
+    sectionLabel: {
+        fontSize: '11px',
         fontWeight: 'bold',
         textTransform: 'uppercase',
-        color: '#4b5563',
-        marginBottom: '8px'
+        color: '#6b7280', // Gray-500
+        marginBottom: '6px',
+        letterSpacing: '0.05em'
     },
+    customerName: {
+        fontSize: '16px',
+        fontWeight: 'bold',
+        color: '#111827',
+        marginBottom: '4px'
+    },
+    customerDetails: {
+        fontSize: '13px',
+        color: '#4b5563',
+        lineHeight: '1.4'
+    },
+    invoiceMetaRow: {
+        display: 'flex',
+        justifyContent: 'flex-end',
+        fontSize: '13px',
+        marginBottom: '4px'
+    },
+    metaLabel: {
+        color: '#6b7280',
+        marginRight: '8px',
+        fontWeight: '500'
+    },
+    metaValue: {
+        fontWeight: 'bold',
+        color: '#111827'
+    },
+    // Table
     table: {
         width: '100%',
-        marginBottom: '32px',
-        borderCollapse: 'collapse'
+        marginBottom: '24px',
+        borderCollapse: 'collapse',
+        tableLayout: 'auto' // Dynamic widths
     },
     th: {
-        padding: '8px',
-        textAlign: 'left',
-        fontSize: '12px',
+        padding: '12px',
+        textAlign: 'left', // Default
+        fontSize: '11px',
         fontWeight: 'bold',
         textTransform: 'uppercase',
-        border: '1px solid #1f2937',
-        backgroundColor: '#f3f4f6'
+        backgroundColor: '#f3f4f6', // Light Gray Header Bg
+        color: BRAND_COLOR, // Brand Color Text
+        borderBottom: `1px solid #e5e7eb`
     },
     td: {
-        padding: '8px',
-        border: '1px solid #1f2937',
-        fontSize: '12px'
+        padding: '12px',
+        fontSize: '13px',
+        borderBottom: '1px solid #f3f4f6',
+        color: '#374151',
+        verticalAlign: 'top' // Ensure multiline text aligns to top
+    },
+    // Totals
+    totalsContainer: {
+        display: 'flex',
+        justifyContent: 'flex-end',
+        marginTop: '16px'
+    },
+    totalsBox: {
+        width: '45%',
+        paddingTop: '8px'
     },
     totalRow: {
         display: 'flex',
         justifyContent: 'space-between',
-        padding: '8px 0',
-        borderBottom: '2px solid #1f2937',
-        marginTop: '8px'
+        padding: '6px 0',
+        fontSize: '13px',
+        color: '#4b5563'
     },
+    finalTotalRow: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        padding: '12px 0 0 0',
+        borderTop: `2px solid ${BRAND_COLOR}`,
+        marginTop: '8px',
+        fontSize: '16px',
+        fontWeight: 'bold',
+        color: '#111827'
+    },
+    // Footer
     footer: {
         marginTop: 'auto',
-        paddingTop: '32px',
+        paddingTop: '40px',
         borderTop: '1px solid #e5e7eb',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-end'
+    },
+    termsBox: {
+        width: '55%'
+    },
+    signatoryBox: {
+        textAlign: 'center',
+        paddingBottom: '8px'
     },
     watermark: {
         position: 'absolute',
@@ -107,12 +199,11 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
         transform: 'translate(-50%, -50%) rotate(-45deg)',
         fontSize: `${watermarkSize}px`, // Dynamic Size
         fontWeight: 'bold',
-        color: '#9ca3af', // Gray-400 equivalent
-        opacity: '0.1',   // Very faint
+        color: '#9ca3af', // Gray-400
+        opacity: '0.08',   // Very faint
         whiteSpace: 'nowrap',
         pointerEvents: 'none',
         zIndex: 0,
-        width: '100%',
         textAlign: 'center'
     }
   };
@@ -124,144 +215,167 @@ export const InvoiceTemplate = React.forwardRef(({ data }, ref) => {
            {watermarkText || companyDetails?.name || 'COMPANY NAME'}
        </div>
        
-       {/* Header */}
-       <div style={styles.header}>
-         <div>
-           <h1 style={styles.title}>{documentTitle}</h1>
-           <p style={styles.companyName}>{companyDetails?.name || 'Company Name'}</p>
-           <p style={{...styles.textSmall, whiteSpace: 'pre-line', maxWidth: '320px'}}>{companyDetails?.address || 'Address Here'}</p>
-           <p style={styles.textSmall}>Phone: {companyDetails?.phone || 'Phone Number'}</p>
+       {/* 1. Header (2-Column Flex) */}
+       <div style={styles.headerRow}>
+         {/* Left: Company Details */}
+         <div style={styles.headerLeft}>
+             {/* Logo - Embedded if exists */}
+             {showLogo && logoImage && (
+                 <img src={logoImage} alt="Logo" style={{ height: '60px', width: 'auto', objectFit: 'contain', marginBottom: '12px' }} />
+             )}
+
+             <h2 style={styles.companyName}>{companyDetails?.name || 'Your Company Name'}</h2>
+             <p style={styles.companyAddress}>{companyDetails?.address || 'Your Business Address'}</p>
+             <div style={styles.phoneRow}>
+                 <Phone size={14} style={{ marginRight: '6px', color: BRAND_COLOR }} />
+                 <span style={{ fontWeight: 500 }}>{companyDetails?.phone || '+91 00000 00000'}</span>
+             </div>
          </div>
-         <div style={{ textAlign: 'right' }}>
-            {showLogo && (
-                logoImage ? (
-                   <img src={logoImage} alt="Logo" style={{ height: '96px', width: 'auto', objectFit: 'contain', marginLeft: 'auto' }} />
-                ) : (
-                   <div style={{ width: '96px', height: '96px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', marginBottom: '8px', marginLeft: 'auto', backgroundColor: '#f3f4f6', border: '1px dashed #d1d5db' }}>
-                      <span style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center' }}>Logo Area</span>
-                   </div>
-                )
-            )}
+
+         {/* Right: Invoice Label & Meta */}
+         <div style={styles.headerRight}>
+             <h1 style={styles.title}>{documentTitle}</h1>
+             
+             <div style={{ marginTop: '12px' }}>
+                 <div style={styles.invoiceMetaRow}>
+                     <span style={styles.metaLabel}>Invoice No:</span>
+                     <span style={styles.metaValue}>{invoiceNumber}</span>
+                 </div>
+                 <div style={styles.invoiceMetaRow}>
+                     <span style={styles.metaLabel}>Date:</span>
+                     <span style={styles.metaValue}>{invoiceDate}</span>
+                 </div>
+                 {/* Optional Due Date could go here if in data */}
+             </div>
          </div>
        </div>
 
-      {/* Bill To */}
-      <div style={styles.flexBetween}>
-        <div>
-          <h3 style={styles.sectionTitle}>Billed To:</h3>
-          <p style={{...styles.textSmall, fontWeight: 'bold', color: '#111827'}}>{customer.name || 'Customer Name'}</p>
-          <p style={{...styles.textSmall, whiteSpace: 'pre-line', maxWidth: '300px'}}>{customer.address || 'Customer Address'}</p>
-          <p style={styles.textSmall}>{customer.phone || 'Customer Phone'}</p>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <h3 style={styles.sectionTitle}>Invoice Details:</h3>
-          <p style={styles.textSmall}><strong>Invoice No:</strong> {invoiceNumber}</p>
-          <p style={styles.textSmall}><strong>Date:</strong> {invoiceDate}</p>
-        </div>
-      </div>
+       {/* 2. Customer & Billed To Section */}
+       <div style={styles.billedToSection}>
+         <div>
+           <div style={styles.sectionLabel}>Billed To:</div>
+           <p style={styles.customerName}>{customer.name || 'Customer Name'}</p>
+           <p style={styles.customerDetails}>{customer.address || 'Address Line 1\nCity, State, Zip'}</p>
+           {customer.phone && <p style={{...styles.customerDetails, marginTop: '4px'}}>Phone: {customer.phone}</p>}
+         </div>
+       </div>
 
-      {/* Items Table */}
-      <div style={{ flex: 1 }}> {/* Ensure table takes space but pushes footer down */}
-          <table style={styles.table}>
-            <thead>
-              <tr style={{ backgroundColor: '#f3f4f6' }}>
-                <th style={{...styles.th, width: '40%'}}>Item Description</th>
-                <th style={{...styles.th, width: '20%', textAlign: 'center'}}>Qty</th>
-                <th style={{...styles.th, width: '20%', textAlign: 'right'}}>Price</th>
-                <th style={{...styles.th, width: '20%', textAlign: 'right'}}>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, index) => (
-                <tr key={index}>
-                  <td style={styles.td}>{item.name}</td>
-                  <td style={{...styles.td, textAlign: 'center'}}>{item.quantity}</td>
-                  <td style={{...styles.td, textAlign: 'right'}}>₹{Number(item.price).toLocaleString()}</td>
-                  <td style={{...styles.td, textAlign: 'right'}}>₹{(Number(item.quantity) * Number(item.price)).toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+       {/* 3. Data Table (Grid) */}
+       <div style={{ flex: 1 }}> 
+           <table style={styles.table}>
+             <thead>
+               <tr>
+                 {/* Item Description (Left, 40%) */}
+                 <th style={{...styles.th, width: '40%', borderTopLeftRadius: '4px'}}>Item Description</th>
+                 {/* Qty (Center, 15%) */}
+                 <th style={{...styles.th, width: '15%', textAlign: 'center'}}>Qty</th>
+                 {/* Price (Right, 20%) */}
+                 <th style={{...styles.th, width: '20%', textAlign: 'right'}}>Price</th>
+                 {/* Amount (Right, 25%) */}
+                 <th style={{...styles.th, width: '25%', textAlign: 'right', borderTopRightRadius: '4px'}}>Amount</th>
+               </tr>
+             </thead>
+             <tbody>
+               {items.map((item, index) => (
+                 <tr key={index}>
+                   <td style={styles.td}>
+                       <div style={{ fontWeight: '600', color: '#111827' }}>{item.name}</div>
+                       {/* Description could go here if added later */}
+                   </td>
+                   <td style={{...styles.td, textAlign: 'center'}}>{item.quantity}</td>
+                   <td style={{...styles.td, textAlign: 'right'}}>₹{Number(item.price).toLocaleString()}</td>
+                   <td style={{...styles.td, textAlign: 'right', fontWeight: 'bold'}}>₹{(Number(item.quantity) * Number(item.price)).toLocaleString()}</td>
+                 </tr>
+               ))}
+               {/* Empty min-height filler if needed, but flex 1 handles it mostly */}
+             </tbody>
+           </table>
 
-          {/* Totals */}
-          <div style={{ marginLeft: 'auto', width: '50%' }}>
-            <div style={styles.totalRow}>
-              <span style={styles.textSmall}>Subtotal:</span>
-              <span style={{...styles.textSmall, fontWeight: 'bold'}}>₹{subtotal.toLocaleString()}</span>
-            </div>
-            {/* Show other totals if needed (Tax, Discount etc in future) */}
-            <div style={{...styles.totalRow, borderBottom: 'none'}}>
-              <span style={{ fontSize: '16px', fontWeight: 'bold' }}>Total:</span>
-              <span style={{ fontSize: '16px', fontWeight: 'bold' }}>₹{total.toLocaleString()}</span>
-            </div>
-            
-            {payments && payments.length > 0 && (
-                <>
-                    <div style={{...styles.totalRow, marginTop: '16px', borderTop: '1px dashed #d1d5db', paddingTop: '8px' }}>
-                        <span style={styles.textSmall}>Amount Paid:</span>
-                        <span style={{...styles.textSmall, fontWeight: 'bold', color: '#059669'}}>₹{totalPaid.toLocaleString()}</span>
-                    </div>
-                </>
-            )}
+           {/* 3.1 Totals (Bottom Right) */}
+           <div style={styles.totalsContainer}>
+             <div style={styles.totalsBox}>
+               <div style={styles.totalRow}>
+                 <span>Subtotal</span>
+                 <span style={{ fontWeight: '600', color: '#111827' }}>₹{subtotal.toLocaleString()}</span>
+               </div>
+               {/* Tax/Discount placeholders would be here */}
+               
+               <div style={styles.finalTotalRow}>
+                 <span>Total</span>
+                 <span>₹{total.toLocaleString()}</span>
+               </div>
 
-            <div style={{...styles.totalRow, borderTop: '2px solid #1f2937', marginTop: '4px', paddingTop: '8px' }}>
-              <span style={{ fontSize: '16px', fontWeight: 'bold' }}>Balance Due:</span>
-              <span style={{ fontSize: '16px', fontWeight: 'bold', color: balanceDue > 0 ? '#dc2626' : '#059669' }}>
-                  ₹{balanceDue.toLocaleString()}
-              </span>
-            </div>
+               {payments && payments.length > 0 && totalPaid > 0 && (
+                 <div style={{...styles.totalRow, marginTop: '8px', color: '#059669' }}>
+                    <span>Amount Paid</span>
+                    <span style={{ fontWeight: 'bold' }}>₹{totalPaid.toLocaleString()}</span>
+                 </div>
+               )}
+
+               <div style={{...styles.totalRow, color: balanceDue > 0 ? '#dc2626' : '#059669', fontWeight: 'bold', fontSize: '14px', marginTop: '4px' }}>
+                 <span>Balance Due</span>
+                 <span>₹{balanceDue.toLocaleString()}</span>
+               </div>
+             </div>
+           </div>
+       </div>
+
+       {/* 4. Footer (Terms Left, Sign Right) */}
+       <div style={styles.footer}>
+          
+          {/* Terms & Payment Info */}
+          <div style={styles.termsBox}>
+             {/* Payment Badges (Flex Row) */}
+             {paymentDetails.show && (
+                 <div style={{ marginBottom: '20px' }}>
+                      <div style={styles.sectionLabel}>Payment Options</div>
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+                         {paymentDetails.phonePe && (
+                             <div style={{ display: 'flex', alignItems: 'center', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
+                                 <img src={phonePeLogo} style={{height: '18px', width: 'auto', marginRight: '8px' }} alt="PhonePe"/>
+                                 <span>{paymentDetails.phonePe}</span>
+                             </div>
+                         )}
+                         {paymentDetails.googlePay && (
+                             <div style={{ display: 'flex', alignItems: 'center', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
+                                 <img src={googlePayLogo} style={{height: '18px', width: 'auto', marginRight: '8px' }} alt="GPay"/>
+                                 <span>{paymentDetails.googlePay}</span>
+                             </div>
+                         )}
+                         {paymentDetails.upiId && (
+                             <div style={{ display: 'flex', alignItems: 'center', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
+                                 <span style={{ marginRight: '4px', fontWeight: 'bold', color: BRAND_COLOR }}>UPI:</span> {paymentDetails.upiId}
+                             </div>
+                         )}
+                      </div>
+                 </div>
+             )}
+             
+             {showTerms && (
+                 <div>
+                     <div style={styles.sectionLabel}>Terms & Conditions</div>
+                     <ul style={{ paddingLeft: '14px', margin: 0, fontSize: '11px', color: '#6b7280', lineHeight: '1.5' }}>
+                         <li>Goods once sold will not be taken back.</li>
+                         <li>Interest @ 18% p.a. will be charged if payment is not made within the due date.</li>
+                         <li>Subject to local jurisdiction.</li>
+                     </ul>
+                 </div>
+             )}
           </div>
-      </div>
 
-      {/* Footer Section */}
-      <div style={styles.footer}>
-         <div style={{ width: '60%' }}>
-            {/* Payment Details */}
-            {paymentDetails.show && (
-                <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '4px' }}>
-                     <h4 style={{...styles.sectionTitle, marginBottom: '4px'}}>Payment Options</h4>
-                     <div style={{ display: 'flex', gap: '8px', fontSize: '10px', color: '#4b5563', flexWrap: 'wrap' }}>
-                        {paymentDetails.phonePe && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <img src={phonePeLogo} style={{height: '12px'}} alt="PhonePe"/> {paymentDetails.phonePe}
-                            </div>
-                        )}
-                        {paymentDetails.googlePay && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <img src={googlePayLogo} style={{height: '12px'}} alt="GPay"/> {paymentDetails.googlePay}
-                            </div>
-                        )}
-                        {paymentDetails.upiId && <span>UPI: {paymentDetails.upiId}</span>}
+          {/* Signature */}
+          <div style={styles.signatoryBox}>
+             {showSignature && (
+                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100px' }}>
+                     {signatureImage && <img src={signatureImage} style={{ maxHeight: '60px', marginBottom: '8px' }} alt="Signature" />}
+                     <div style={{ borderTop: '1px solid #1f2937', width: '160px', paddingTop: '8px' }}>
+                         <p style={{ fontSize: '11px', fontWeight: 'bold', margin: 0, textTransform: 'uppercase' }}>{companyDetails.name}</p>
+                         <p style={{ fontSize: '11px', color: '#6b7280', margin: 0 }}>Authorized Signatory</p>
                      </div>
-                </div>
-            )}
-            
-            {/* Terms */}
-            {showTerms && (
-                <div>
-                    <h4 style={styles.sectionTitle}>Terms & Conditions</h4>
-                    <p style={{ fontSize: '10px', color: '#6b7280', margin: 0 }}>
-                        1. Goods once sold will not be taken back.<br/>
-                        2. Interest @ 18% p.a. will be charged if payment is not made within the due date.<br/>
-                        3. Subject to local jurisdiction.
-                    </p>
-                </div>
-            )}
-         </div>
-
-         {/* Signature */}
-         <div style={{ textAlign: 'center' }}>
-            {showSignature && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '80px' }}>
-                    {signatureImage && <img src={signatureImage} style={{ maxHeight: '60px', marginBottom: '4px' }} alt="Signature" />}
-                    <div style={{ borderTop: '1px solid #1f2937', width: '150px', paddingTop: '4px' }}>
-                        <p style={{ fontSize: '10px', fontWeight: 'bold', margin: 0 }}>{companyDetails.name}</p>
-                        <p style={{ fontSize: '10px', color: '#6b7280', margin: 0 }}>Authorized Signatory</p>
-                    </div>
-                </div>
-            )}
-         </div>
-      </div>
+                 </div>
+             )}
+          </div>
+       </div>
 
     </div>
   );
