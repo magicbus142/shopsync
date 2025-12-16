@@ -111,7 +111,8 @@ export default function Overview() {
             .eq('organization_id', currentOrg.id) 
             .or('payment_status.eq.Pending,payment_status.eq.Partial')
             .order('date', { ascending: true }) 
-            .limit(6) 
+            // Removed limit to show all in scrollable view
+            // .limit(6) 
     
         // B. Total Pending Amount (Fetch all pending to sum)
         const { data: allPending } = await supabase
@@ -212,7 +213,7 @@ export default function Overview() {
         })
         .filter(Boolean)
         .sort((a, b) => b.margin - a.margin) // Sort by Margin
-        .slice(0, 5) // Top 5 for charts, verify if table needs more later
+        // .slice(0, 5) // Removed limit for scrollable table
         
         // Reuse for Chart (Top 5 revenue)
         const productRevenueData = productPerformanceData
@@ -641,7 +642,8 @@ export default function Overview() {
                         <AlertCircle className="w-5 h-5 text-orange-500" />
                         <h3 className="text-lg font-semibold">Pending Payments</h3>
                     </div>
-                    <div className="space-y-3">
+                    {/* Added Scroll Container */}
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                          {data.pendingPayments.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
                                 <CheckCircle className="w-10 h-10 mb-2 opacity-20" />
@@ -669,11 +671,6 @@ export default function Overview() {
                                 )
                             })
                          )}
-                         {data.pendingPayments.length > 0 && (
-                             <Link to="/dashboard/transactions?status=Pending" className="block text-center text-sm text-primary hover:underline pt-2">
-                                 View All Pending
-                             </Link>
-                         )}
                     </div>
                  </div>
             </div>
@@ -685,7 +682,7 @@ export default function Overview() {
                         <h3 className="text-lg font-semibold">Product Performance (Margins)</h3>
                         <Link to="/dashboard/inventory" className="text-sm text-primary hover:underline">View All Inventory</Link>
                     </div>
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto custom-scrollbar">
                         <table className="w-full text-sm text-left">
                             <thead className="bg-muted/50 text-muted-foreground font-medium">
                                 <tr>
