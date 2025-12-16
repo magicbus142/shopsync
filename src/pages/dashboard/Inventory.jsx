@@ -422,11 +422,23 @@ export default function Inventory() {
                                          <span className="text-sm font-medium">Stock Status</span>
                                       </div>
                                       <div className="flex items-end gap-2">
-                                          <span className="text-3xl font-bold">{viewProduct.stock}</span>
+                                          <span className="text-3xl font-bold">
+                                              {viewProduct.stock} 
+                                              <span className="text-lg text-muted-foreground font-normal"> / {Math.max(viewProduct.stock, viewProduct.initial_stock || 0)}</span>
+                                          </span>
                                           <span className="text-sm text-muted-foreground mb-1">units</span>
                                       </div>
-                                      <div className="w-full h-2 bg-muted rounded-full mt-2 overflow-hidden">
-                                          <div className="h-full bg-primary" style={{ width: `${Math.min(100, (viewProduct.stock / (viewProduct.min_stock_level * 3)) * 100)}%` }}></div>
+                                      <div className="flex justify-between text-[10px] text-muted-foreground mt-1 mb-1">
+                                          <span>Current</span>
+                                          <span>Total Ordered</span>
+                                      </div>
+                                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                                          <div 
+                                            className="h-full bg-primary transition-all duration-500" 
+                                            style={{ 
+                                                width: `${Math.min(100, (viewProduct.stock / Math.max(viewProduct.stock, viewProduct.initial_stock || 1)) * 100)}%` 
+                                            }}
+                                          ></div>
                                       </div>
                                  </div>
 
