@@ -488,7 +488,7 @@ export default function InvoiceGenerator() {
                         title="Visual Style" 
                         isOpen={openSections.includes('style')}
                         onToggle={() => toggleSection('style')}
-                        icon={<Monitor size={18} />}
+                        icon={Monitor}
                     >
                         <div className="space-y-4">
                             <div>
