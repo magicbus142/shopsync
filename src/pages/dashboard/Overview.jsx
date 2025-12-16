@@ -674,6 +674,7 @@ export default function Overview() {
                     </div>
                  </div>
             </div>
+        </div>
 
             {/* Product Performance Table - Moved to Bottom */}
             <div className="grid grid-cols-1 gap-6 mb-8 w-full">
@@ -732,7 +733,7 @@ export default function Overview() {
                     </div>
                  </div>
             </div>
-        </div>
+
         </>
       )}
     </>
