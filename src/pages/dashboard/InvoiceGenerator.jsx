@@ -183,12 +183,12 @@ export default function InvoiceGenerator() {
   // Calculations
   const subtotal = items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.price)), 0)
   const total = subtotal 
-  const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0)
+  const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0) + items.reduce((acc, item) => acc + Number(item.paid || 0), 0)
   const balanceDue = Math.max(0, total - totalPaid)
 
   // Handlers
   const handleAddItem = () => {
-     const newItems = [...items, { id: Date.now(), date: invoiceDate, name: '', quantity: 1, price: 0 }]
+     const newItems = [...items, { id: Date.now(), date: invoiceDate, name: '', quantity: 1, price: 0, paid: 0 }]
      setItems(newItems)
      // Ensure both Items and Payments sections are open when adding items
      if (!openSections.includes('payments')) {
@@ -526,19 +526,27 @@ export default function InvoiceGenerator() {
                                 
                                 <div className="grid grid-cols-12 gap-2">
                                     <div className="col-span-12 mb-2">
-                                        <label className="text-[10px] uppercase font-bold text-muted-foreground">Item</label>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <label className="text-[10px] uppercase font-bold text-muted-foreground">Item</label>
+                                            <input type="date" value={item.date || invoiceDate} onChange={e => handleItemChange(item.id, 'date', e.target.value)} className="p-1 text-[10px] border rounded bg-transparent" />
+                                        </div>
                                         <input list={`products-${item.id}`} type="text" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm font-bold" placeholder="Item Name" />
                                         <datalist id={`products-${item.id}`}>{products.map(p => <option key={p.id} value={p.name}>₹{p.price}</option>)}</datalist>
                                     </div>
-                                    <div className="col-span-4">
+                                    <div className="col-span-3">
                                         <label className="text-[10px] uppercase font-bold text-muted-foreground">Qty</label>
                                         <input type="number" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm text-center" />
                                     </div>
-                                    <div className="col-span-4">
+                                    <div className="col-span-3">
                                         <label className="text-[10px] uppercase font-bold text-muted-foreground">Price</label>
                                         <input type="number" value={item.price} onChange={e => handleItemChange(item.id, 'price', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm text-right" />
                                     </div>
-                                    <div className="col-span-4 flex items-end justify-end">
+                                    <div className="col-span-3">
+                                        <label className="text-[10px] uppercase font-bold text-muted-foreground">Paid</label>
+                                        <input type="number" value={item.paid || 0} onChange={e => handleItemChange(item.id, 'paid', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm text-right text-green-600 bg-green-50" />
+                                    </div>
+                                    <div className="col-span-3 flex flex-col items-end justify-center">
+                                         <span className="text-[10px] text-muted-foreground">Total</span>
                                         <span className="font-bold text-sm">₹{(item.quantity * item.price).toLocaleString()}</span>
                                     </div>
                                 </div>

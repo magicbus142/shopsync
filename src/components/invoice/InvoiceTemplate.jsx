@@ -238,28 +238,44 @@ export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern'
 
        {/* Table */}
        <div style={{ flex: 1 }}> 
-           <table style={styles.table}>
-             <thead>
-               <tr>
-                 <th style={{...styles.th, width: '40%', borderTopLeftRadius: isClassic ? 0 : '4px'}}>Item Description</th>
-                 <th style={{...styles.th, width: '15%', textAlign: 'center'}}>Qty</th>
-                 <th style={{...styles.th, width: '20%', textAlign: 'right'}}>Price</th>
-                 <th style={{...styles.th, width: '25%', textAlign: 'right', borderTopRightRadius: isClassic ? 0 : '4px', borderRight: isClassic ? '1px solid #000' : 'none'}}>Amount</th>
-               </tr>
-             </thead>
-             <tbody>
-               {items.map((item, index) => (
-                 <tr key={index}>
-                   <td style={styles.td}>
-                       <div style={{ fontWeight: '600', color: '#111827' }}>{item.name}</div>
-                   </td>
-                   <td style={{...styles.td, textAlign: 'center'}}>{item.quantity}</td>
-                   <td style={{...styles.td, textAlign: 'right'}}>₹{Number(item.price).toLocaleString()}</td>
-                   <td style={{...styles.td, textAlign: 'right', fontWeight: 'bold', borderRight: isClassic ? '1px solid #000' : 'none'}}>₹{(Number(item.quantity) * Number(item.price)).toLocaleString()}</td>
-                 </tr>
-               ))}
-             </tbody>
-           </table>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={{...styles.th, width: '12%', borderTopLeftRadius: isClassic ? 0 : '4px'}}>Date</th>
+                  <th style={{...styles.th, width: '28%'}}>Item Description</th>
+                  <th style={{...styles.th, width: '8%', textAlign: 'center'}}>Qty</th>
+                  <th style={{...styles.th, width: '12%', textAlign: 'right'}}>Price</th>
+                  <th style={{...styles.th, width: '12%', textAlign: 'right'}}>Amount</th>
+                  <th style={{...styles.th, width: '12%', textAlign: 'right'}}>Paid</th>
+                  <th style={{...styles.th, width: '16%', textAlign: 'right', borderTopRightRadius: isClassic ? 0 : '4px', borderRight: isClassic ? '1px solid #000' : 'none'}}>Pending</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, index) => {
+                  const amount = Number(item.quantity) * Number(item.price);
+                  const paid = Number(item.paid || 0);
+                  const pending = amount - paid;
+                  
+                  return (
+                  <tr key={index}>
+                    <td style={styles.td}>
+                        <div style={{ color: '#4b5563', fontSize: '11px' }}>{item.date ? new Date(item.date).toLocaleDateString('en-IN') : '-'}</div>
+                    </td>
+                    <td style={styles.td}>
+                        <div style={{ fontWeight: '600', color: '#111827' }}>{item.name}</div>
+                    </td>
+                    <td style={{...styles.td, textAlign: 'center'}}>{item.quantity}</td>
+                    <td style={{...styles.td, textAlign: 'right'}}>₹{Number(item.price).toLocaleString()}</td>
+                    <td style={{...styles.td, textAlign: 'right'}}>₹{amount.toLocaleString()}</td>
+                    <td style={{...styles.td, textAlign: 'right', color: 'green'}}>₹{paid.toLocaleString()}</td>
+                    <td style={{...styles.td, textAlign: 'right', fontWeight: 'bold', borderRight: isClassic ? '1px solid #000' : 'none', color: pending > 0 ? '#dc2626' : '#111827'}}>
+                        ₹{pending.toLocaleString()}
+                    </td>
+                  </tr>
+                  )
+                })}
+              </tbody>
+            </table>
 
            {/* Totals */}
            <div style={styles.totalsContainer}>
