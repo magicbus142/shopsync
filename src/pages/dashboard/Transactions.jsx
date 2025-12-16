@@ -107,7 +107,7 @@ export default function Transactions() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 8
+  const itemsPerPage = 10
 
   useEffect(() => {
      setCurrentPage(1)

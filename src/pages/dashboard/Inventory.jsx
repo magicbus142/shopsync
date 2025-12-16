@@ -64,7 +64,7 @@ export default function Inventory() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 9
+  const itemsPerPage = 10
 
   useEffect(() => {
     setCurrentPage(1)
