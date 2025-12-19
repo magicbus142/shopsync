@@ -4,94 +4,151 @@
 @layer base {
   :root {
     /* Base Variables Shared */
-    --radius: 0.75rem; /* 12px for a modern, friendly feel */
+    --radius: 0.75rem;
 
     /* 
-       PREMIUM LIGHT THEME 
-       Using a cool-toned, high-contrast palette
+       NEW USER THEME 
+       Palette: #6A89A7 (Muted), #BDDDFC (Light), #88BDF2 (Sky), #384959 (Dark)
     */
-    --color-background: #ffffff; /* Keeping main bg white for crispness, or very light gray */
-    --color-foreground: #09090b; /* Zinc 950 - softer than pure black */
+    /* 
+       CLASSIC LIGHT THEME (Professional SaaS)
+       Clean White/Gray Backgrounds, Slate Text, Indigo Accents
+    */
+    --color-background: #f8fafc; /* Slate 50 */
+    --color-foreground: #0f172a; /* Slate 900 */
 
     --color-card: #ffffff;
-    --color-card-foreground: #09090b;
+    --color-card-foreground: #0f172a;
 
     --color-popover: #ffffff;
-    --color-popover-foreground: #09090b;
+    --color-popover-foreground: #0f172a;
 
-    /* Primary: Deep Indigo/Violet */
     --color-primary: #4f46e5; /* Indigo 600 */
     --color-primary-foreground: #ffffff;
 
-    /* Secondary: Soft Gray for subtle backgrounds */
-    --color-secondary: #f4f4f5; /* Zinc 100 */
-    --color-secondary-foreground: #18181b;
+    --color-secondary: #f1f5f9; /* Slate 100 */
+    --color-secondary-foreground: #0f172a;
 
-    --color-muted: #f4f4f5;
-    --color-muted-foreground: #71717a; /* Zinc 500 */
+    --color-muted: #f1f5f9; /* Slate 100 */
+    --color-muted-foreground: #64748b; /* Slate 500 */
 
-    --color-accent: #f4f4f5;
-    --color-accent-foreground: #18181b;
+    --color-accent: #f1f5f9;
+    --color-accent-foreground: #0f172a;
 
     --color-destructive: #ef4444;
     --color-destructive-foreground: #ffffff;
 
-    --color-border: #e4e4e7; /* Zinc 200 */
-    --color-input: #e4e4e7;
-    --color-ring: #4f46e5; 
+    --color-border: #e2e8f0; /* Slate 200 */
+    --color-input: #e2e8f0;
+    --color-ring: #4f46e5;
   }
 
-  [data-theme="dark"] {
+  /* 
+     Obsidian Theme (Premium Dark) 
+     Pitch black background, sharp contrast, professional feel
+  */
+  [data-theme="obsidian"] {
     color-scheme: dark;
-    /* 
-       PREMIUM DARK THEME
-       Deep, rich, hole-black background with slightly lighter cards
-    */
-    --color-background: #09090b; /* Zinc 950 */
-    --color-foreground: #fafafa; /* Zinc 50 */
+    --color-background: #000000;
+    --color-foreground: #ffffff;
 
-    --color-card: #09090b; /* Same as bg for seamless look, or #18181b for contrast */
-    --color-card-foreground: #fafafa;
+    --color-card: #0a0a0a;
+    --color-card-foreground: #ffffff;
 
-    --color-popover: #09090b;
-    --color-popover-foreground: #fafafa;
+    --color-popover: #0a0a0a;
+    --color-popover-foreground: #ffffff;
 
-    --color-primary: #6366f1; /* Indigo 500 - brighter for dark mode */
-    --color-primary-foreground: #ffffff;
+    --color-primary: #ffffff;
+    --color-primary-foreground: #000000;
 
-    --color-secondary: #27272a; /* Zinc 800 */
-    --color-secondary-foreground: #fafafa;
+    --color-secondary: #27272a;
+    --color-secondary-foreground: #ffffff;
 
     --color-muted: #27272a;
-    --color-muted-foreground: #a1a1aa; /* Zinc 400 */
+    --color-muted-foreground: #a1a1aa;
 
     --color-accent: #27272a;
-    --color-accent-foreground: #fafafa;
+    --color-accent-foreground: #ffffff;
 
-    --color-destructive: #7f1d1d;
-    --color-destructive-foreground: #fafafa;
+    --color-destructive: #ef4444;
+    --color-destructive-foreground: #ffffff;
 
     --color-border: #27272a;
     --color-input: #27272a;
-    --color-ring: #6366f1;
+    --color-ring: #ffffff;
   }
-  
-  [data-theme="midnight"] {
-    /* Deep Blue/Purple Theme */
-    --color-background: #020617; 
-    --color-foreground: #e0e7ff;
-    
-    --color-card: #0f172a; 
-    --color-card-foreground: #e0e7ff;
-    
-    --color-muted: #1e293b;
-    --color-muted-foreground: #94a3b8;
-    
-    --color-primary: #818cf8; 
-    --color-primary-foreground: #ffffff;
 
-    --color-input: #1e293b;
-    --color-border: #1e293b;
+  /* 
+     Ocean Theme (Trustworthy, Financial) 
+     Deep blues, calm slate grays
+  */
+  [data-theme="ocean"] {
+    color-scheme: light; /* Can be dark, but let's make it a 'dark mode' variant for variety or keep it separate? User asked for 'best themes'. Let's make Ocean a dark, navy-based theme. */
+    color-scheme: dark;
+
+    --color-background: #0f172a; /* Slate 900 */
+    --color-foreground: #f8fafc; /* Slate 50 */
+
+    --color-card: #1e293b; /* Slate 800 */
+    --color-card-foreground: #f8fafc;
+
+    --color-popover: #1e293b;
+    --color-popover-foreground: #f8fafc;
+
+    --color-primary: #38bdf8; /* Sky 400 */
+    --color-primary-foreground: #0f172a;
+
+    --color-secondary: #334155; /* Slate 700 */
+    --color-secondary-foreground: #f8fafc;
+
+    --color-muted: #334155;
+    --color-muted-foreground: #94a3b8; /* Slate 400 */
+
+    --color-accent: #334155;
+    --color-accent-foreground: #f8fafc;
+
+    --color-destructive: #ef4444;
+    --color-destructive-foreground: #ffffff;
+
+    --color-border: #334155;
+    --color-input: #334155;
+    --color-ring: #38bdf8;
+  }
+
+  /* 
+     Sunset Theme (Vibrant SaaS) 
+     Dark background with warm undertones
+  */
+  [data-theme="sunset"] {
+    color-scheme: dark;
+
+    --color-background: #1c1917; /* Stone 900 */
+    --color-foreground: #fafaf9; /* Stone 50 */
+
+    --color-card: #292524; /* Stone 800 */
+    --color-card-foreground: #fafaf9;
+
+    --color-popover: #292524;
+    --color-popover-foreground: #fafaf9;
+
+    --color-primary: #fb923c; /* Orange 400 */
+    --color-primary-foreground: #1c1917;
+
+    --color-secondary: #44403c; /* Stone 700 */
+    --color-secondary-foreground: #fafaf9;
+
+    --color-muted: #44403c;
+    --color-muted-foreground: #a8a29e; /* Stone 400 */
+
+    --color-accent: #44403c;
+    --color-accent-foreground: #fafaf9;
+
+    --color-destructive: #ef4444;
+    --color-destructive-foreground: #ffffff;
+
+    --color-border: #44403c;
+    --color-input: #44403c;
+    --color-ring: #fb923c;
   }
 
   body {
@@ -112,22 +169,24 @@
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
   }
-  
+
   .dark .glass {
     background: rgba(9, 9, 11, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .glass-card {
-     background: rgba(255, 255, 255, 0.8);
-     backdrop-filter: blur(12px);
-     border: 1px solid rgba(200, 200, 200, 0.2);
-     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(200, 200, 200, 0.2);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
+      0 2px 4px -1px rgba(0, 0, 0, 0.03);
   }
 
   .dark .glass-card {
-     background: rgba(24, 24, 27, 0.6);
-     border: 1px solid rgba(255, 255, 255, 0.08);
-     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    background: rgba(24, 24, 27, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2),
+      0 2px 4px -1px rgba(0, 0, 0, 0.1);
   }
 }

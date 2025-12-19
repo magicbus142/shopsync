@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowUpRight, ArrowDownLeft, Plus, X, Calendar, Package, Users, Search, Filter, Download, Pencil, Trash2, Eye, IndianRupee, Share2 } from 'lucide-react'
+import { ArrowUpRight, ArrowDownLeft, Plus, X, Calendar, Package, Users, Search, Filter, Download, Pencil, Trash2, Eye, IndianRupee, Share2, Edit2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useOrganization } from '../../context/OrganizationContext'
 import { useToast } from '../../context/ToastContext'
@@ -409,36 +409,50 @@ export default function Transactions() {
 
   return (
     <div className="space-y-6 relative min-h-[80vh]">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pr-14 md:pr-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Transactions</h2>
-          <p className="text-muted-foreground">Manage your finances</p>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Transactions</h2>
+          <p className="text-muted-foreground">Monitor and manage your financial records.</p>
         </div>
-        <div className="flex gap-2">
-            <button onClick={() => { setEditingId(null); setFormData(initialFormState); setShowModal(true); }} className="hidden md:flex bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium items-center gap-2 hover:bg-primary/90">
-              <Plus className="w-4 h-4" /> Add Transaction
+        <div className="flex gap-3">
+            <button 
+                onClick={() => { 
+                    setEditingId(null); 
+                    setFormData({...initialFormState, type: 'income'}); 
+                    setActiveTab('income'); 
+                    setShowModal(true); 
+                }} 
+                className="hidden md:flex bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm items-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20"
+            >
+              <ArrowDownLeft className="w-5 h-5" /> Record Sale
+            </button>
+            <button 
+                onClick={() => { 
+                    setEditingId(null); 
+                    setFormData({...initialFormState, type: 'expense'}); 
+                    setActiveTab('expense'); 
+                    setShowModal(true); 
+                }} 
+                className="hidden md:flex bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm items-center gap-2 hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20"
+            >
+              <ArrowUpRight className="w-5 h-5" /> New Expense
             </button>
         </div>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-card p-4 rounded-xl border border-border">
-          <p className="text-sm text-muted-foreground mb-1">Total Income</p>
-          <p className="text-2xl font-bold text-green-500">₹{totalIncome.toLocaleString()}</p>
-        </div>
-        <div className="bg-card p-4 rounded-xl border border-border">
-          <p className="text-sm text-muted-foreground mb-1">Total Expenses</p>
-          <p className="text-2xl font-bold text-red-500">₹{totalExpense.toLocaleString()}</p>
-        </div>
-        <div className="bg-card p-4 rounded-xl border border-border">
-             <p className="text-sm text-muted-foreground mb-1">Total Pending</p>
-             <p className="text-2xl font-bold text-orange-500">₹{totalPending.toLocaleString()}</p>
-        </div>
-        <div className="bg-card p-4 rounded-xl border border-border">
-          <p className="text-sm text-muted-foreground mb-1">Balance</p>
-          <p className="text-2xl font-bold">₹{(totalIncome - totalExpense).toLocaleString()}</p>
-        </div>
+         {[
+            { label: 'Total Income', amount: totalIncome, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/10' },
+            { label: 'Total Expenses', amount: totalExpense, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-900/10' },
+            { label: 'Pending', amount: totalPending, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/10' },
+            { label: 'Net Balance', amount: totalIncome - totalExpense, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/10' },
+         ].map((stat, i) => (
+             <div key={i} className={`p-5 rounded-2xl border border-border ${stat.bg}`}>
+                 <p className="text-sm font-medium text-muted-foreground mb-1">{stat.label}</p>
+                 <p className={`text-2xl font-bold ${stat.color}`}>₹{stat.amount.toLocaleString()}</p>
+             </div>
+         ))}
       </div>
 
       {/* Search & Filters Toolbar */}
@@ -449,7 +463,7 @@ export default function Transactions() {
                 <input 
                     type="text" 
                     placeholder="Search transactions..." 
-                    className="w-full pl-9 pr-4 py-2 bg-background border border-input rounded-lg text-sm focus:ring-1 focus:ring-primary"
+                    className="w-full pl-9 pr-4 py-2.5 bg-background border border-input rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
@@ -458,30 +472,26 @@ export default function Transactions() {
                 {/* Filters Container */}
                 <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                     {/* Date Inputs */}
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-2 bg-background border border-input rounded-lg px-2 py-1">
-                            <span className="text-sm font-medium whitespace-nowrap text-muted-foreground">Start Date</span>
-                            <input 
-                                type="date" 
-                                className="bg-transparent border-none text-sm focus:ring-0 p-1"
-                                value={dateRange.from || ''}
-                                onChange={(e) => setDateRange({...dateRange, from: e.target.value})}
-                            />
-                        </div>
-                        <div className="flex items-center gap-2 bg-background border border-input rounded-lg px-2 py-1">
-                            <span className="text-sm font-medium whitespace-nowrap text-muted-foreground">End Date</span>
-                            <input 
-                                type="date" 
-                                className="bg-transparent border-none text-sm focus:ring-0 p-1"
-                                value={dateRange.to || ''}
-                                onChange={(e) => setDateRange({...dateRange, to: e.target.value})}
-                            />
-                        </div>
+                    <div className="flex items-center gap-2 bg-background border border-input rounded-xl px-3 py-1.5 shadow-sm">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <input 
+                            type="date" 
+                            className="bg-transparent border-none text-xs focus:ring-0 p-0 text-foreground w-auto"
+                            value={dateRange.from || ''}
+                            onChange={(e) => setDateRange({...dateRange, from: e.target.value})}
+                        />
+                        <span className="text-muted-foreground">-</span>
+                        <input 
+                            type="date" 
+                            className="bg-transparent border-none text-xs focus:ring-0 p-0 text-foreground w-auto"
+                            value={dateRange.to || ''}
+                            onChange={(e) => setDateRange({...dateRange, to: e.target.value})}
+                        />
                     </div>
 
                     {/* Status Filter */}
                     <select 
-                        className="h-10 px-3 py-2 bg-background border border-input rounded-lg text-sm min-w-[120px]"
+                        className="h-10 px-3 py-2 bg-background border border-input rounded-xl text-sm min-w-[120px] shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
                         value={filterStatus}
                         onChange={(e) => setFilterStatus(e.target.value)}
                     >
@@ -493,7 +503,7 @@ export default function Transactions() {
 
                     {/* Type Filter */}
                     <select 
-                        className="h-10 px-3 py-2 bg-background border border-input rounded-lg text-sm min-w-[120px]"
+                        className="h-10 px-3 py-2 bg-background border border-input rounded-xl text-sm min-w-[120px] shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
                         value={filterType}
                         onChange={(e) => setFilterType(e.target.value)}
                     >
@@ -504,99 +514,200 @@ export default function Transactions() {
                 </div>
       </div>
 
-      {/* Transactions List (Simplified for brevity, assuming existing list structure with updated badges) */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
-         <div className="divide-y divide-border">
-            {currentItems.map(t => (
-                <div key={t.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-muted/30 gap-3">
-                    <div className="flex items-start gap-4">
-                        <div className={`p-2 rounded-full mt-1 ${t.type === 'income' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                            {t.type === 'income' ? <ArrowDownLeft className="w-5 h-5"/> : <ArrowUpRight className="w-5 h-5"/>}
-                        </div>
-                        <div>
-                             <p className="font-semibold text-lg">{t.category}</p>
-                             <p className="text-sm text-muted-foreground">{t.description} {t.party_name && `• ${t.party_name}`}</p>
-                             <div className="flex items-center gap-2 mt-1">
-                                <span className={`text-[10px] px-2 py-0.5 rounded border ${t.payment_status === 'Paid' ? 'border-green-200 text-green-700 bg-green-50' : 'border-orange-200 text-orange-700 bg-orange-50'}`}>
-                                    {t.payment_status}
-                                </span>
-                                <span className="text-xs text-muted-foreground">{format(new Date(t.date), 'dd MMM yyyy')}</span>
-                             </div>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <div className={`font-bold text-lg ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                             ₹{Number(t.amount).toLocaleString()}
-                        </div>
-                        <div className="flex justify-end gap-2 mt-2">
-                             <button onClick={() => handleView(t)} className="p-1.5 text-blue-600 bg-blue-50 rounded hover:bg-blue-100"><Eye className="w-4 h-4"/></button>
-                             <button onClick={() => handleEdit(t)} className="p-1.5 text-zinc-600 bg-zinc-50 rounded hover:bg-zinc-100"><Pencil className="w-4 h-4"/></button>
-                             <button onClick={() => handleDelete(t.id)} className="p-1.5 text-red-600 bg-red-50 rounded hover:bg-red-100"><Trash2 className="w-4 h-4"/></button>
-                        </div>
-                    </div>
-                </div>
-            ))}
+      {/* Transactions List */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+         {/* Table Header */}
+         <div className="hidden md:flex flex-row gap-4 p-4 border-b border-border bg-muted/30 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+             <div className="w-[32%] pl-14">Origin / Description</div>
+             <div className="w-[18%] pl-2">Category</div>
+             <div className="w-[18%]">Status</div>
+             <div className="w-[20%] text-right pr-8">Amount</div>
+             <div className="w-[12%] text-center">Action</div>
          </div>
-         {filteredTransactions.length > itemsPerPage && <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />}
+         <div className="divide-y divide-border">
+              {currentItems.length > 0 ? currentItems.map((transaction) => {
+                  const isPositive = transaction.type === 'income'
+                  const pendingAmount = Number(transaction.amount) - (Number(transaction.amount_paid) || 0)
+                  
+                  return (
+                <div 
+                    key={transaction.id} 
+                    className="p-4 hover:bg-muted/50 transition-colors flex flex-col md:flex-row items-center gap-4 group cursor-pointer"
+                    onClick={() => handleView(transaction)}
+                >
+                  {/* Icon & Description */}
+                  <div className="flex items-center gap-4 w-full md:w-[32%]">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isPositive ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                          {isPositive ? <ArrowDownLeft className="w-5 h-5"/> : <ArrowUpRight className="w-5 h-5"/>}
+                      </div>
+                      <div className="min-w-0">
+                          <p className="font-bold text-foreground truncate">{transaction.party_name || transaction.description || 'Untitled Transaction'}</p>
+                          <p className="text-xs text-muted-foreground">{format(new Date(transaction.date), 'yyyy-MM-dd')}</p>
+                      </div>
+                  </div>
+
+                   {/* Category Pill */}
+                   <div className="w-full md:w-[18%] pl-2">
+                        <span className="px-3 py-1 bg-muted/50 text-muted-foreground rounded-lg text-[10px] font-bold uppercase tracking-wider border border-border/50">
+                            {transaction.category}
+                        </span>
+                   </div>
+
+                  {/* Status with Dot */}
+                  <div className="w-full md:w-[18%] flex items-center gap-2">
+                       <div className={`w-1.5 h-1.5 rounded-full ${transaction.payment_status === 'Paid' ? 'bg-emerald-500' : transaction.payment_status === 'Pending' ? 'bg-rose-500' : 'bg-amber-500'}`} />
+                       <span className={`text-xs font-bold uppercase ${transaction.payment_status === 'Paid' ? 'text-emerald-600' : transaction.payment_status === 'Pending' ? 'text-rose-600' : 'text-amber-600'}`}>
+                           {transaction.payment_status}
+                       </span>
+                  </div>
+
+                  {/* Amount */}
+                  <div className="w-full md:w-[20%] text-right pr-8">
+                       <p className={`font-bold text-base ${isPositive ? 'text-emerald-600' : 'text-foreground'}`}>
+                           {isPositive ? '+' : '-'} ₹{Number(transaction.amount).toLocaleString()}
+                       </p>
+                       {transaction.payment_status === 'Partial' && pendingAmount > 0 && (
+                           <p className="text-[10px] font-bold text-amber-600 uppercase">Due: ₹{pendingAmount.toLocaleString()}</p>
+                       )}
+                  </div>
+                  
+                  {/* Actions */}
+                  <div className="w-full md:w-[12%] flex justify-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => handleView(transaction)} className="p-2 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="View Details">
+                          <Eye className="w-4 h-4"/>
+                      </button>
+                      <button onClick={() => handleEdit(transaction)} className="p-2 text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" title="Edit">
+                          <Edit2 className="w-4 h-4"/>
+                      </button>
+                      <button onClick={() => handleDelete(transaction.id)} className="p-2 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors" title="Delete">
+                          <Trash2 className="w-4 h-4"/>
+                      </button>
+                  </div>
+                </div>
+              )}) : (
+                <div className="p-12 text-center text-muted-foreground">
+                    <Package className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                    <p>No transactions found matching your criteria.</p>
+                </div>
+            )}
+         </div>
+         {filteredTransactions.length > itemsPerPage && <div className="border-t border-border p-4 bg-muted/50"><Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} /></div>}
       </div>
 
-       {/* View Details Modal */}
+       {/* View Details Modal - Digital Receipt Style */}
        <AnimatePresence>
         {viewTransaction && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white dark:bg-zinc-900 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto border border-white/20">
-                {/* Modal Header */}
-                <div className="p-6 border-b border-border flex justify-between items-start bg-muted/20">
-                    <div>
-                         <div className="flex items-center gap-3 mb-2">
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${viewTransaction.type === 'income' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-                                {viewTransaction.type}
-                            </span>
-                            <span className="text-sm text-muted-foreground">{format(new Date(viewTransaction.date), 'dd MMMM yyyy')}</span>
-                         </div>
-                         <h3 className="text-2xl font-bold text-foreground">{viewTransaction.category}</h3>
-                         {viewTransaction.description && <p className="text-muted-foreground mt-1">{viewTransaction.description} {viewTransaction.party_name ? `• ${viewTransaction.party_name}` : ''}</p>}
-                    </div>
-                    <button onClick={() => setViewTransaction(null)} className="p-2 hover:bg-muted rounded-full transition-colors"><X className="w-5 h-5 text-muted-foreground" /></button>
-                </div>
-
-                <div className="p-6 space-y-8">
-                    {/* Main Amount Card */}
-                    <div className="bg-card p-6 rounded-2xl border border-border flex justify-between items-center shadow-sm">
-                        <div>
-                            <p className="text-sm text-muted-foreground font-medium mb-1">Total Transaction Amount</p>
-                            <p className="text-4xl font-bold tracking-tight text-foreground">₹{Number(viewTransaction.amount).toLocaleString()}</p>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setViewTransaction(null)}>
+             <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }} 
+                animate={{ opacity: 1, scale: 1, y: 0 }} 
+                exit={{ opacity: 0, scale: 0.95, y: 20 }} 
+                className={`bg-card w-full max-w-5xl h-[90vh] md:h-[85vh] rounded-3xl shadow-2xl overflow-hidden border border-border relative flex flex-col md:flex-row ${viewTransaction.type === 'income' ? 'border-l-8 border-l-emerald-500' : 'border-l-8 border-l-rose-500'}`}
+                onClick={e => e.stopPropagation()}
+             >
+                    {/* LEFT COLUMN: Header & Key Info (Fixed on Desktop) */}
+                    <div className="w-full md:w-[42%] h-full flex flex-col p-8 md:p-10 border-b md:border-b-0 md:border-r border-border/40 bg-card overflow-y-auto md:overflow-hidden relative z-10">
+                        {/* Header & Close (Mobile) */}
+                        <div className="flex justify-between items-start mb-8">
+                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transform rotate-[-6deg] ${viewTransaction.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                                  {viewTransaction.type === 'income' ? <ArrowDownLeft className="w-8 h-8"/> : <ArrowUpRight className="w-8 h-8"/>}
+                             </div>
+                             {/* Mobile Close Button */}
+                             <button onClick={() => setViewTransaction(null)} className="md:hidden p-2 bg-muted hover:bg-muted/80 rounded-full transition-colors">
+                                 <X className="w-5 h-5 text-muted-foreground" />
+                             </button>
                         </div>
-                        <div className={`p-4 rounded-full ${viewTransaction.type === 'income' ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600'}`}>
-                            {viewTransaction.type === 'income' ? <ArrowDownLeft className="w-8 h-8"/> : <ArrowUpRight className="w-8 h-8"/>}
+
+                        {/* Content Container (Scrollable on mobile only) */}
+                        <div className="flex-1 flex flex-col">
+                            {/* Amount Display */}
+                            <div className="mb-10">
+                                <p className="text-sm font-extrabold text-muted-foreground uppercase tracking-wider mb-2">{viewTransaction.category}</p>
+                                <h2 className="text-5xl font-black tracking-tight text-foreground mb-4">₹{Number(viewTransaction.amount).toLocaleString()}</h2>
+                                <div className="flex items-center gap-3">
+                                    <span className={`px-3 py-1 rounded-lg text-xs font-bold border ${viewTransaction.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+                                        {viewTransaction.payment_status.toUpperCase()}
+                                    </span>
+                                    <span className="text-sm text-foreground font-semibold">{format(new Date(viewTransaction.date), 'dd MMMM yyyy')}</span>
+                                </div>
+                            </div>
+
+                            {/* Basic Details Grid */}
+                            <div className="grid grid-cols-1 gap-6 text-sm mb-6">
+                                <div>
+                                    <p className="text-muted-foreground font-medium mb-1">Payment Method</p>
+                                    <p className="font-bold text-xl text-foreground">{viewTransaction.payment_method || 'Cash'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground font-medium mb-1">{viewTransaction.type === 'income' ? 'Received From' : 'Paid To'}</p>
+                                    <p className="font-bold text-xl text-foreground">{viewTransaction.party_name || viewTransaction.description || 'N/A'}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                         {/* Actions & Audit (Pushed to bottom) */}
+                        <div className="mt-auto space-y-4 pt-6">
+                            {/* Audit Log Peek */}
+                            <AuditHistory tableName="transactions" recordId={viewTransaction.id} />
+
+                            <button
+                                onClick={() => {
+                                    const t = viewTransaction
+                                    const itemsText = viewItems.map(i => `${i.quantity} x ${getProductName(i.product_id)}`).join(', ')
+                                    const text = `*Invoice Spec*\n\nTransaction: #${t.id}\nAmount: ₹${Number(t.amount).toLocaleString()}\nStatus: ${t.payment_status}\n\n*Verified by ShopSync*`
+                                    const url = `https://wa.me/?text=${encodeURIComponent(text)}`
+                                    window.open(url, '_blank')
+                                }}
+                                className="w-full py-4 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-transform active:scale-[0.98] shadow-lg shadow-[#25D366]/20"
+                            >
+                                <Share2 className="w-5 h-5" /> Share Receipt on WhatsApp
+                            </button>
                         </div>
                     </div>
 
-                    <PaymentHistory 
-                        payments={paymentHistory} 
-                        totalAmount={Number(viewTransaction.amount)}
-                        onAddPayment={handleAddPartialPayment}
-                        onRemovePayment={handleRemovePartialPayment}
-                    />
+                    {/* RIGHT COLUMN: Items & History (Independently Scrollable) */}
+                    <div className="w-full md:w-[58%] h-full bg-muted/5 overflow-y-auto p-6 md:p-8 space-y-6 relative custom-scrollbar">
+                        {/* Desktop Close Button (Top Right) */}
+                         <button onClick={() => setViewTransaction(null)} className="hidden md:flex absolute top-4 right-4 p-2 bg-muted/50 hover:bg-muted rounded-full transition-colors z-20">
+                             <X className="w-5 h-5 text-muted-foreground" />
+                         </button>
 
-                    {/* Quick Actions */}
-                    <div className="flex gap-4">
-                        <button
-                            onClick={() => {
-                                const t = viewTransaction
-                                const itemsText = viewItems.map(i => `${i.quantity} x ${getProductName(i.product_id)}`).join(', ')
-                                const text = `*Invoice Details*\n\nTransaction ID: #${t.id}\nDate: ${format(new Date(t.date), 'dd MMM yyyy')}\nCategory: ${t.category}\n\n*Items:*\n${itemsText || 'N/A'}\n\n*Total Amount:* ₹${Number(t.amount).toLocaleString()}\n*Status:* ${t.payment_status}\n\nThank you for your business!`
-                                const url = `https://wa.me/?text=${encodeURIComponent(text)}`
-                                window.open(url, '_blank')
-                            }}
-                            className="flex-1 py-3 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-lg"
-                        >
-                            <Share2 className="w-5 h-5" /> Share Invoice on WhatsApp
-                        </button>
+                        {/* Items Section */}
+                        <div className="bg-card border border-border/60 rounded-2xl p-6 shadow-sm">
+                                <h4 className="text-xs font-bold uppercase text-muted-foreground mb-5 flex items-center gap-2 tracking-wider">
+                                    <Package className="w-4 h-4" /> Items Purchased
+                                </h4>
+                                {viewItems.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {viewItems.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between items-center text-sm border-b border-border/40 last:border-0 pb-3 last:pb-0">
+                                                <div className="flex items-center gap-3">
+                                                     <span className="font-bold text-foreground bg-muted w-8 h-8 flex items-center justify-center rounded-lg text-xs">{item.quantity}x</span> 
+                                                     <span className="font-medium text-foreground text-base">{getProductName(item.product_id)}</span>
+                                                </div>
+                                                <span className="font-bold text-base">₹{item.total_price.toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 text-muted-foreground text-sm bg-muted/20 rounded-xl border border-dashed border-border/60">
+                                        No items linked
+                                    </div>
+                                )}
+                        </div>
+                        
+                        {/* Payment History Section */}
+                        <div className="bg-card border border-border/60 rounded-2xl p-6 shadow-sm">
+                            <h4 className="text-xs font-bold uppercase text-muted-foreground mb-5 flex items-center gap-2 tracking-wider">
+                                    <IndianRupee className="w-4 h-4" /> Payment History
+                            </h4>
+                            <PaymentHistory 
+                                payments={paymentHistory} 
+                                totalAmount={Number(viewTransaction.amount)}
+                                readOnly={true}
+                            />
+                        </div>
                     </div>
-
-                    <AuditHistory tableName="transactions" recordId={viewTransaction.id} />
-                </div>
              </motion.div>
           </div>
         )}
@@ -605,190 +716,190 @@ export default function Transactions() {
       {/* Add/Edit Modal (With Tabs) */}
       <AnimatePresence>
          {showModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-card w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-                  <div className="flex border-b border-border">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)}>
+               <motion.div 
+                   initial={{ opacity: 0, scale: 0.95, y: 20 }} 
+                   animate={{ opacity: 1, scale: 1, y: 0 }} 
+                   exit={{ opacity: 0, scale: 0.95, y: 20 }} 
+                   className="bg-card w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto border border-border flex flex-col"
+                   onClick={e => e.stopPropagation()}
+                >
+                  <div className="flex border-b border-border bg-muted/20 shrink-0">
                       <button 
                         onClick={() => { setActiveTab('income'); setFormData({...formData, type: 'income'}) }}
-                        className={`flex-1 py-4 text-center font-bold transition-colors ${activeTab === 'income' ? 'bg-green-50 text-green-700 border-b-2 border-green-500' : 'hover:bg-muted text-muted-foreground'}`}
+                        className={`flex-1 py-4 text-center font-bold tracking-tight transition-all relative overflow-hidden ${activeTab === 'income' ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/10' : 'text-muted-foreground hover:bg-muted'}`}
                       >
-                          Income
+                          Income 
+                          {activeTab === 'income' && <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500" />}
                       </button>
                       <button 
                         onClick={() => { setActiveTab('expense'); setFormData({...formData, type: 'expense'}) }}
-                        className={`flex-1 py-4 text-center font-bold transition-colors ${activeTab === 'expense' ? 'bg-red-50 text-red-700 border-b-2 border-red-500' : 'hover:bg-muted text-muted-foreground'}`}
+                        className={`flex-1 py-4 text-center font-bold tracking-tight transition-all relative overflow-hidden ${activeTab === 'expense' ? 'text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/10' : 'text-muted-foreground hover:bg-muted'}`}
                       >
                           Expense
+                          {activeTab === 'expense' && <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-1 bg-rose-500" />}
                       </button>
-                      <button onClick={resetForm} className="px-4 hover:bg-red-100 text-muted-foreground hover:text-red-500"><X className="w-5 h-5"/></button>
                   </div>
                   
-                  <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                      {/* Common Fields */}
-                      <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                             <label className="text-sm font-medium">Date</label>
-                             <input type="date" required className="w-full px-3 py-2 border border-input rounded-lg bg-background" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
-                          </div>
-                          <div className="space-y-2">
-                             <label className="text-sm font-medium">Category</label>
-                             <select className="w-full px-3 py-2 border border-input rounded-lg bg-background" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                                 <option value="">Select...</option>
-                                 {activeTab === 'income' ? (
-                                    <>
-                                        <option value="Sales">Sales Product</option>
-                                        <option value="Services">Services</option>
-                                        <option value="Other">Other Income</option>
-                                    </>
-                                 ) : (
-                                    <>
-                                        <option value="Inventory Purchase">Inventory Purchase</option>
-                                        <option value="Salary Payment">Salary Payment</option>
-                                        <option value="Rent">Rent</option>
-                                        <option value="Utilities">Utilities</option>
-                                        <option value="Other">Other Expense</option>
-                                    </>
+                  <div className="flex-1 overflow-y-auto">
+                      <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                            {/* Head Fields */}
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                               <div className="space-y-2">
+                                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date</label>
+                                  <input type="date" required className="w-full px-4 py-2.5 border border-input rounded-xl bg-background hover:bg-accent/5 focus:ring-2 focus:ring-primary/20 outline-none transition-all" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
+                               </div>
+                               <div className="space-y-2">
+                                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Category</label>
+                                  <select className="w-full px-4 py-2.5 border border-input rounded-xl bg-background hover:bg-accent/5 focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                                      <option value="">Select Category...</option>
+                                      {activeTab === 'income' ? (
+                                         <>
+                                             <option value="Sales">Sales Product</option>
+                                             <option value="Services">Services</option>
+                                             <option value="Other">Other Income</option>
+                                         </>
+                                      ) : (
+                                         <>
+                                             <option value="Inventory Purchase">Inventory Purchase</option>
+                                             <option value="Salary Payment">Salary Payment</option>
+                                             <option value="Rent">Rent</option>
+                                             <option value="Utilities">Utilities</option>
+                                             <option value="Other">Other Expense</option>
+                                         </>
+                                      )}
+                                  </select>
+                               </div>
+                           </div>
+
+                           <div className="space-y-2">
+                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{activeTab === 'income' ? 'Pary / Buyer Name' : 'Payee / Description'}</label>
+                               <input 
+                                    className="w-full px-4 py-3 border border-input rounded-xl bg-background hover:bg-accent/5 focus:ring-2 focus:ring-primary/20 outline-none transition-all" 
+                                    placeholder={activeTab === 'income' ? "e.g. Ram Kumar" : "e.g. Shop Rent for Oct"} 
+                                    value={activeTab === 'income' ? formData.buyerName : formData.description} 
+                                    onChange={e => activeTab === 'income' ? setFormData({...formData, buyerName: e.target.value}) : setFormData({...formData, description: e.target.value})} 
+                                />
+                           </div>
+
+                             {/* Product Cart Section */}
+                         {((activeTab === 'income' && formData.category === 'Sales') || (activeTab === 'expense' && formData.category === 'Inventory Purchase')) && (
+                             <div className="bg-muted/40 p-5 rounded-2xl border border-dashed border-border/70 space-y-5">
+                                 <h5 className="font-bold text-sm flex items-center gap-2 text-foreground">
+                                     <Package className="w-4 h-4 text-primary" /> 
+                                     {activeTab === 'income' ? 'Add Products to Order' : 'Add Inventory Items'}
+                                 </h5>
+                                 
+                                 {/* Adder Row */}
+                                 <div className="flex flex-col md:flex-row gap-3 items-end">
+                                     <div className="w-full space-y-1.5">
+                                         <label className="text-xs font-medium text-muted-foreground">Product</label>
+                                         <select 
+                                             className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:ring-1 focus:ring-primary"
+                                             value={tempItem.productId}
+                                             onChange={(e) => updateTempItemProduct(e.target.value)}
+                                         >
+                                             <option value="">Select Product...</option>
+                                             {products.map(p => (
+                                                 <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>
+                                             ))}
+                                         </select>
+                                     </div>
+                                     <div className="flex gap-3 w-full md:w-auto">
+                                         <div className="w-20 space-y-1.5 shrink-0">
+                                             <label className="text-xs font-medium text-muted-foreground">Qty</label>
+                                             <input type="number" className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background" value={tempItem.quantity} onChange={e => setTempItem({...tempItem, quantity: e.target.value})} min="1" />
+                                         </div>
+                                         <div className="w-24 space-y-1.5 shrink-0">
+                                             <label className="text-xs font-medium text-muted-foreground">Price</label>
+                                             <input type="number" className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background" value={tempItem.price} onChange={e => setTempItem({...tempItem, price: e.target.value})} />
+                                         </div>
+                                         <button type="button" onClick={handleAddItem} className="bg-primary hover:bg-primary/90 text-primary-foreground p-2 h-[38px] w-[38px] flex items-center justify-center rounded-lg shadow-sm mt-auto"><Plus className="w-5 h-5" /></button>
+                                     </div>
+                                 </div>
+
+                                 {/* Items List Table */}
+                                 {formData.items.length > 0 && (
+                                     <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+                                         <table className="w-full text-sm">
+                                             <thead className="bg-muted/50 text-xs uppercase text-muted-foreground font-semibold">
+                                                 <tr>
+                                                     <th className="px-4 py-2 text-left">Product</th>
+                                                     <th className="px-4 py-2 text-center">Qty</th>
+                                                     <th className="px-4 py-2 text-right">Total</th>
+                                                     <th className="w-8"></th>
+                                                 </tr>
+                                             </thead>
+                                             <tbody className="divide-y divide-border">
+                                                 {formData.items.map((item, idx) => (
+                                                     <tr key={idx} className="group hover:bg-muted/20">
+                                                         <td className="px-4 py-2 font-medium">{products.find(p=>p.id===item.productId)?.name || 'Unknown'}</td>
+                                                         <td className="px-4 py-2 text-center text-muted-foreground">{item.quantity}</td>
+                                                         <td className="px-4 py-2 text-right font-medium">₹{(item.price * item.quantity).toLocaleString()}</td>
+                                                         <td className="px-4 py-2 text-center">
+                                                             <button type="button" onClick={() => handleRemoveItem(idx)} className="text-muted-foreground hover:text-red-500 transition-colors"><X className="w-3 h-3" /></button>
+                                                         </td>
+                                                     </tr>
+                                                 ))}
+                                             </tbody>
+                                         </table>
+                                     </div>
                                  )}
-                             </select>
+                             </div>
+                         )}
+                           
+                           {/* Amount and Payment */}
+                          <div className="bg-muted/20 p-6 rounded-2xl border border-border">
+                               <div className="space-y-4">
+                                   <div className="flex flex-col space-y-2">
+                                      <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Amount</label>
+                                      <div className="relative">
+                                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">₹</span>
+                                          <input 
+                                                type="number" 
+                                                required 
+                                                className={`w-full pl-8 pr-4 py-3 border border-input rounded-xl bg-background font-bold text-xl outline-none hover:border-primary/50 focus:border-primary focus:ring-1 focus:ring-primary ${formData.items.length > 0 ? 'bg-muted/50 text-muted-foreground cursor-not-allowed' : ''}`}
+                                                value={formData.amount} 
+                                                onChange={e => { if (formData.items.length === 0) setFormData({...formData, amount: e.target.value}) }}
+                                                readOnly={formData.items.length > 0}
+                                                placeholder="0.00"
+                                            />
+                                      </div>
+                                   </div>
+
+                                   {!editingId && (
+                                       <div className="grid grid-cols-2 gap-4">
+                                           <div className="space-y-2">
+                                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Paid Now</label>
+                                               <input type="number" className="w-full px-4 py-2.5 border border-input rounded-xl bg-background text-sm" placeholder="₹ Amount Paid" value={formData.initialPayment} onChange={e => setFormData({...formData, initialPayment: e.target.value})} />
+                                           </div>
+                                            <div className="space-y-2">
+                                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Method</label>
+                                               <select className="w-full px-4 py-2.5 border border-input rounded-xl bg-background text-sm cursor-pointer" value={formData.paymentMethod} onChange={e => setFormData({...formData, paymentMethod: e.target.value})}>
+                                                    <option>Cash</option>
+                                                    <option>UPI</option>
+                                                    <option>Bank Transfer</option>
+                                               </select>
+                                           </div>
+                                       </div>
+                                   )}
+                               </div>
                           </div>
-                      </div>
-                    
-                    {/* Dynamic Fields based on Type */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">{activeTab === 'income' ? 'Buyer Name' : 'Payee / Description'}</label>
-                        <input className="w-full px-3 py-2 border border-input rounded-lg bg-background" placeholder={activeTab === 'income' ? "e.g. John Doe" : "e.g. Office Rent"} value={activeTab === 'income' ? formData.buyerName : formData.description} onChange={e => activeTab === 'income' ? setFormData({...formData, buyerName: e.target.value}) : setFormData({...formData, description: e.target.value})} />
-                    </div>
+                      </form>
+                  </div>
 
-                    {/* Product Cart Section */}
-                    {((activeTab === 'income' && formData.category === 'Sales') || (activeTab === 'expense' && formData.category === 'Inventory Purchase')) && (
-                        <div className="bg-muted/30 p-4 rounded-xl border border-dashed border-border space-y-4">
-                            <h5 className="font-semibold text-sm flex items-center gap-2">
-                                <Package className="w-4 h-4 text-primary" /> 
-                                {activeTab === 'income' ? 'Select Products to Sell' : 'Select Inventory to Buy'}
-                            </h5>
-                            
-                            {/* Adder Row */}
-                            <div className="flex gap-2 items-end">
-                                <div className="flex-1 space-y-1">
-                                    <label className="text-xs font-medium text-muted-foreground">Product</label>
-                                    <select 
-                                        className="w-full px-2 py-2 text-sm border border-input rounded-lg bg-background"
-                                        value={tempItem.productId}
-                                        onChange={(e) => updateTempItemProduct(e.target.value)}
-                                    >
-                                        <option value="">Select Product...</option>
-                                        {products.map(p => (
-                                            <option key={p.id} value={p.id}>
-                                                {p.name} (Stock: {p.stock})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="w-20 space-y-1">
-                                    <label className="text-xs font-medium text-muted-foreground">Qty</label>
-                                    <input 
-                                        type="number" 
-                                        className="w-full px-2 py-2 text-sm border border-input rounded-lg bg-background"
-                                        value={tempItem.quantity}
-                                        onChange={e => setTempItem({...tempItem, quantity: e.target.value})}
-                                        min="1"
-                                    />
-                                </div>
-                                <div className="w-24 space-y-1">
-                                    <label className="text-xs font-medium text-muted-foreground">Price/Unit</label>
-                                    <input 
-                                        type="number" 
-                                        className="w-full px-2 py-2 text-sm border border-input rounded-lg bg-background"
-                                        value={tempItem.price}
-                                        onChange={e => setTempItem({...tempItem, price: e.target.value})}
-                                    />
-                                </div>
-                                <button 
-                                    type="button"
-                                    onClick={handleAddItem}
-                                    className="bg-primary hover:bg-primary/90 text-primary-foreground p-2 rounded-lg"
-                                    title="Add to List"
-                                >
-                                    <Plus className="w-5 h-5" />
-                                </button>
-                            </div>
+                  {/* Modal Footer (Sticky) */}
+                  <div className="p-4 border-t border-border bg-background shrink-0 flex justify-end gap-3">
+                      <button type="button" onClick={resetForm} className="px-5 py-2.5 rounded-xl text-sm font-bold text-muted-foreground hover:bg-muted transition-colors">Cancel</button>
+                      <button 
+                          onClick={handleSubmit}
+                          disabled={isSubmitting}
+                          className={`px-8 py-2.5 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-95 ${activeTab === 'income' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20'}`}
+                      >
+                          {isSubmitting ? 'Saving...' : editingId ? 'Save Changes' : 'Confirm Transaction'}
+                      </button>
+                  </div>
 
-                            {/* Items List Table */}
-                            {formData.items.length > 0 && (
-                                <div className="overflow-hidden rounded-lg border border-border bg-background">
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-muted/50 text-xs uppercase text-muted-foreground font-medium">
-                                            <tr>
-                                                <th className="px-3 py-2 text-left">Product</th>
-                                                <th className="px-3 py-2 text-center">Qty</th>
-                                                <th className="px-3 py-2 text-right">Total</th>
-                                                <th className="w-8"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-border">
-                                            {formData.items.map((item, idx) => (
-                                                <tr key={idx}>
-                                                    <td className="px-3 py-2">{products.find(p=>p.id===item.productId)?.name || 'Unknown'}</td>
-                                                    <td className="px-3 py-2 text-center">{item.quantity}</td>
-                                                    <td className="px-3 py-2 text-right">₹{(item.price * item.quantity).toLocaleString()}</td>
-                                                    <td className="px-3 py-2 text-center">
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => handleRemoveItem(idx)}
-                                                            className="text-red-500 hover:bg-red-50 rounded p-1"
-                                                        >
-                                                            <X className="w-3 h-3" />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="space-y-2">
-                         <label className="text-sm font-medium flex justify-between">
-                            Total Amount (₹)
-                            {formData.items.length > 0 && <span className="text-xs text-muted-foreground font-normal">(Auto-calculated)</span>}
-                         </label>
-                         <input 
-                            type="number" 
-                            required 
-                            className={`w-full px-3 py-2 border border-input rounded-lg bg-background font-bold text-lg ${formData.items.length > 0 ? 'bg-muted text-muted-foreground' : ''}`}
-                            value={formData.amount} 
-                            onChange={e => {
-                                // Only allow manual edit if no items are added
-                                if (formData.items.length === 0) {
-                                    setFormData({...formData, amount: e.target.value})
-                                }
-                            }}
-                            readOnly={formData.items.length > 0}
-                         />
-                    </div>
-
-                    {!editingId && (
-                        <div className="grid grid-cols-2 gap-4 bg-muted/30 p-3 rounded-lg">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Paid Now (₹)</label>
-                                <input type="number" className="w-full px-3 py-2 border border-input rounded-lg bg-background" placeholder="Initial Payment" value={formData.initialPayment} onChange={e => setFormData({...formData, initialPayment: e.target.value})} />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Method</label>
-                                <select className="w-full px-3 py-2 border border-input rounded-lg bg-background" value={formData.paymentMethod} onChange={e => setFormData({...formData, paymentMethod: e.target.value})}>
-                                    <option>Cash</option>
-                                    <option>UPI</option>
-                                </select>
-                            </div>
-                        </div>
-                    )}
-                    
-                    <button type="submit" className={`w-full py-3 rounded-lg font-bold text-white shadow-lg ${activeTab === 'income' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}>
-                        {editingId ? 'Save Changes' : `Record ${activeTab === 'income' ? 'Income' : 'Expense'}`}
-                    </button>
-                  </form>
                </motion.div>
             </div>
          )}

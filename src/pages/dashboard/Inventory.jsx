@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Plus, Package, Download, Pencil, Trash2, Eye, X, Activity, Tag, AlertTriangle, TrendingUp } from 'lucide-react'
+import { Search, Plus, Package, Download, Pencil, Trash2, Eye, X, Activity, Tag, AlertTriangle, TrendingUp, LayoutGrid, Table } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useOrganization } from '../../context/OrganizationContext'
 import * as XLSX from 'xlsx'
@@ -33,6 +33,7 @@ export default function Inventory() {
   
   // View/History State
   const [viewProduct, setViewProduct] = useState(null)
+  const [viewMode, setViewMode] = useState('table') // 'grid' | 'table'
   const [supplierTransactions, setSupplierTransactions] = useState([])
 
   useEffect(() => {
@@ -293,6 +294,24 @@ export default function Inventory() {
       <div className="flex justify-between items-center mb-6 pr-14 md:pr-0">
          <h2 className="text-2xl font-bold tracking-tight">Inventory</h2>
          <div className="flex gap-2">
+            {/* View Toggle */}
+            <div className="flex items-center bg-muted/50 p-1 rounded-lg border border-border mr-2">
+                <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                    title="Grid View"
+                >
+                    <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={() => setViewMode('table')}
+                    className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                    title="Table View"
+                >
+                    <Table className="w-4 h-4" />
+                </button>
+            </div>
+
             <button 
               onClick={handleExport}
               className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg font-medium flex items-center gap-2 hover:bg-secondary/80 transition-colors shadow-sm"
@@ -339,16 +358,18 @@ export default function Inventory() {
           </div>
       </div>
 
-      {/* Inline Detail View */}
+      {/* Product Detail Modal */}
       <AnimatePresence>
         {viewProduct && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-             <div className="bg-card border border-border rounded-xl shadow-lg mb-6 overflow-hidden relative">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setViewProduct(null)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-card w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto relative"
+            >
+             <div className="bg-card border-none shadow-none mb-0 overflow-hidden relative">
                 {/* Background Pattern */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
 
@@ -519,90 +540,178 @@ export default function Inventory() {
                     </div>
                 </div>
              </div>
-          </motion.div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
-      {/* Product List - Grid on large screens */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        <AnimatePresence mode="popLayout">
-          {currentItems.map((product) => (
-              <motion.div
-                key={product.id}
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-card border border-border rounded-xl p-4 flex gap-4 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
-              >
-                {/* Image Section */}
-                <div className="w-24 h-24 rounded-lg bg-muted overflow-hidden flex-shrink-0 relative border border-border">
-                   <div className="w-full h-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
-                     {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                     ) : (
-                        <Package className="text-gray-300 w-8 h-8" />
-                     )}
-                   </div>
-                </div>
-                
-                {/* Content Section */}
-                <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                   {/* Header: Name & Price */}
-                   <div className="flex justify-between items-start gap-2">
-                       <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-lg leading-tight truncate pr-2 group-hover:text-primary transition-colors" title={product.name}>
-                              {product.name}
-                          </h3>
-                          <div className="text-sm text-muted-foreground mt-0.5">SKU: {product.sku || 'N/A'}</div>
+      {/* Content Area */}
+      {viewMode === 'grid' ? (
+          /* Grid View */
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            <AnimatePresence mode="popLayout">
+              {currentItems.map((product) => (
+                  <motion.div
+                    key={product.id}
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-card border border-border rounded-xl p-4 flex gap-4 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
+                  >
+                    {/* Image Section */}
+                    <div className="w-24 h-24 rounded-lg bg-muted overflow-hidden flex-shrink-0 relative border border-border">
+                       <div className="w-full h-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+                         {product.image_url ? (
+                            <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                         ) : (
+                            <Package className="text-gray-300 w-8 h-8" />
+                         )}
                        </div>
-                       <span className="font-bold text-lg whitespace-nowrap flex-shrink-0">₹{product.price || 0}</span>
-                   </div>
+                    </div>
+                    
+                    {/* Content Section */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                       {/* Header: Name & Price */}
+                       <div className="flex justify-between items-start gap-2">
+                           <div className="min-w-0 flex-1">
+                              <h3 className="font-semibold text-lg leading-tight truncate pr-2 group-hover:text-primary transition-colors" title={product.name}>
+                                  {product.name}
+                              </h3>
+                              <div className="text-sm text-muted-foreground mt-0.5">SKU: {product.sku || 'N/A'}</div>
+                           </div>
+                           <span className="font-bold text-lg whitespace-nowrap flex-shrink-0">₹{product.price || 0}</span>
+                       </div>
 
-                   {/* Badge & Actions */}
-                   <div className="flex items-center justify-between mt-2">
-                       <span className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium ${
-                           product.stock > (product.min_stock_level || 10) 
-                             ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                             : product.stock === 0 
-                               ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                               : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
-                       }`}>
-                           {product.stock > (product.min_stock_level || 10) ? 'In Stock' : product.stock === 0 ? 'Out of Stock' : 'Low Stock'}
-                       </span>
+                       {/* Badge & Actions */}
+                       <div className="flex items-center justify-between mt-2">
+                           <span className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium ${
+                               product.stock > (product.min_stock_level || 10) 
+                                 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                 : product.stock === 0 
+                                   ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                   : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                           }`}>
+                               {product.stock > (product.min_stock_level || 10) ? 'In Stock' : product.stock === 0 ? 'Out of Stock' : 'Low Stock'}
+                           </span>
 
-                       {/* Action Buttons */}
-                       <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                         <button onClick={() => setViewProduct(product)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md" title="View History"><Eye className="w-3.5 h-3.5" /></button>
-                         <button onClick={() => handleEdit(product)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md"><Pencil className="w-3.5 h-3.5" /></button>
-                         <button onClick={() => handleDelete(product.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
+                           {/* Action Buttons */}
+                           <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button onClick={() => setViewProduct(product)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md" title="View History"><Eye className="w-3.5 h-3.5" /></button>
+                             <button onClick={() => handleEdit(product)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md"><Pencil className="w-3.5 h-3.5" /></button>
+                             <button onClick={() => handleDelete(product.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
+                           </div>
                        </div>
-                   </div>
 
-                   {/* Stats Grid */}
-                   <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-border/50">
-                       <div>
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Current Stock</p>
-                          <p className="text-lg font-bold leading-none mt-0.5">{product.stock}</p>
+                       {/* Stats Grid */}
+                       <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-border/50">
+                           <div>
+                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Current Stock</p>
+                              <p className="text-lg font-bold leading-none mt-0.5">{product.stock}</p>
+                           </div>
+                           <div>
+                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Buying Price</p>
+                              <p className="text-lg font-bold text-muted-foreground leading-none mt-0.5">
+                                  ₹{product.buying_price || 0}
+                              </p>
+                           </div>
                        </div>
-                       <div>
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Buying Price</p>
-                          <p className="text-lg font-bold text-muted-foreground leading-none mt-0.5">
-                              ₹{product.buying_price || 0}
-                          </p>
-                       </div>
-                   </div>
-                </div>
-              </motion.div>
-          ))}
-        </AnimatePresence>
-        {getFilteredProducts().length === 0 && (
-           <div className="col-span-full text-center py-12 text-muted-foreground">
-             <Package className="w-12 h-12 mx-auto mb-3 opacity-20" />
-             <p>No products found.</p>
-           </div>
-        )}
-      </div>
+                    </div>
+                  </motion.div>
+              ))}
+            </AnimatePresence>
+            {getFilteredProducts().length === 0 && (
+               <div className="col-span-full text-center py-12 text-muted-foreground">
+                 <Package className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                 <p>No products found.</p>
+               </div>
+            )}
+          </div>
+      ) : (
+          /* Table View */
+          <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+             <div className="overflow-x-auto">
+                 <table className="w-full text-sm text-left">
+                     <thead className="bg-muted/50 text-muted-foreground font-medium uppercase text-[10px] tracking-wider border-b border-border">
+                         <tr>
+                             <th className="px-4 py-3 pl-6">Product</th>
+                             <th className="px-4 py-3 text-center">Stock</th>
+                             <th className="px-4 py-3 text-right">Selling Price</th>
+                             <th className="px-4 py-3 text-right">Buying Price</th>
+                             <th className="px-4 py-3 text-right">Profit / Unit</th>
+                             <th className="px-4 py-3">Supplier</th>
+                             <th className="px-4 py-3 text-right pr-6">Actions</th>
+                         </tr>
+                     </thead>
+                     <tbody className="divide-y divide-border/50">
+                         {currentItems.map((product) => (
+                             <tr key={product.id} className="hover:bg-muted/30 transition-colors group">
+                                 <td className="px-4 py-3 pl-6">
+                                     <div className="flex items-center gap-3">
+                                         <div className="w-10 h-10 rounded-lg bg-muted border border-border overflow-hidden flex-shrink-0 flex items-center justify-center">
+                                             {product.image_url ? (
+                                                 <img src={product.image_url} alt="" className="w-full h-full object-cover" />
+                                             ) : (
+                                                 <Package className="w-4 h-4 text-muted-foreground/50" />
+                                             )}
+                                         </div>
+                                         <div className="flex flex-col min-w-0">
+                                            <div className="font-medium text-foreground whitespace-normal break-words max-w-[180px] sm:max-w-[300px] leading-tight">{product.name}</div>
+                                            <div className="text-[10px] text-muted-foreground font-mono truncate">{product.sku || '-'}</div>
+                                         </div>
+                                     </div>
+                                 </td>
+                                 <td className="px-4 py-3 text-center">
+                                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                          product.stock > (product.min_stock_level || 10) 
+                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                            : product.stock === 0 
+                                              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                              : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                                     }`}>
+                                         {product.stock}
+                                     </span>
+                                 </td>
+                                 <td className="px-4 py-3 text-right font-medium">
+                                     ₹{product.price || 0}
+                                 </td>
+                                 <td className="px-4 py-3 text-right text-muted-foreground">
+                                     ₹{product.buying_price || 0}
+                                 </td>
+                                 <td className="px-4 py-3 text-right font-medium text-green-600 dark:text-green-400">
+                                     ₹{(product.price || 0) - (product.buying_price || 0)}
+                                 </td>
+                                 <td className="px-4 py-3 text-muted-foreground max-w-[150px] truncate">
+                                     {product.supplier_name || '-'}
+                                 </td>
+                                 <td className="px-4 py-3 text-right pr-6">
+                                     <div className="flex items-center justify-end gap-1">
+                                         <button onClick={() => setViewProduct(product)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md" title="View Details">
+                                             <Eye className="w-4 h-4" />
+                                         </button>
+                                         <button onClick={() => handleEdit(product)} className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md" title="Edit">
+                                             <Pencil className="w-4 h-4" />
+                                         </button>
+                                         <button onClick={() => handleDelete(product.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md" title="Delete">
+                                             <Trash2 className="w-4 h-4" />
+                                         </button>
+                                     </div>
+                                 </td>
+                             </tr>
+                         ))}
+                         {currentItems.length === 0 && (
+                             <tr>
+                                 <td colSpan="7" className="px-4 py-12 text-center text-muted-foreground">
+                                     <Package className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                     No products found matching your search.
+                                 </td>
+                             </tr>
+                         )}
+                     </tbody>
+                 </table>
+             </div>
+          </div>
+      )}
 
       {/* Pagination */}
       {filteredProducts.length > itemsPerPage && (

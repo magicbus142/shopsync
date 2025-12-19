@@ -17,6 +17,6 @@ CREATE POLICY "Anyone can check whitelist" ON whitelist
 -- Insert some initial allowed users (Replace with actual emails)
 INSERT INTO whitelist (email) VALUES 
 ('test@shopsync.ai'),
-('swamy@example.com'),
+('swamy@magicbus142.com'),
 ('admin@magicbus.com')
 ON CONFLICT (email) DO NOTHING;

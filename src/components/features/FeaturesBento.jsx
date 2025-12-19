@@ -1,10 +1,37 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import { BarChart3, Package, Users, ShieldCheck, Zap, Sparkles, ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { gsap } from 'gsap'
+import { useGSAP } from '@gsap/react'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+
+gsap.registerPlugin(ScrollTrigger)
 
 export default function FeaturesBento() {
+  const containerRef = useRef(null)
+
+  useGSAP(() => {
+    const cards = gsap.utils.toArray('.feature-card')
+    
+    // Set initial state
+    gsap.set(cards, { y: 50, opacity: 0 })
+
+    // Animate to final state
+    gsap.to(cards, {
+      scrollTrigger: {
+        trigger: containerRef.current,
+        start: 'top 85%',
+      },
+      y: 0,
+      opacity: 1,
+      duration: 0.8,
+      stagger: 0.1,
+      ease: 'power3.out'
+    })
+  }, { scope: containerRef })
+
   return (
-    <section className="py-24 bg-background text-foreground transition-colors duration-300">
+    <section ref={containerRef} className="py-24 bg-background text-foreground transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-20 text-center">
           <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
@@ -16,7 +43,7 @@ export default function FeaturesBento() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 auto-rows-[minmax(180px,auto)]">
           
           {/* Card 1: Smart Transactions (Large Square) */}
-          <div className="col-span-1 md:col-span-2 md:row-span-2 bg-card border border-border rounded-3xl p-8 flex flex-col justify-between hover:shadow-xl transition-all group overflow-hidden relative">
+          <div className="feature-card col-span-1 md:col-span-2 md:row-span-2 bg-card border border-border rounded-3xl p-8 flex flex-col justify-between hover:shadow-xl transition-all group overflow-hidden relative">
             <div className="z-10">
               <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center mb-4">
                 <BarChart3 className="w-6 h-6 text-blue-400" />
@@ -38,7 +65,7 @@ export default function FeaturesBento() {
           </div>
 
           {/* Card 2: AI Advisor (Tall) */}
-          <div className="col-span-1 md:row-span-2 bg-card border border-border rounded-3xl p-8 flex flex-col justify-between hover:shadow-xl transition-all relative overflow-hidden">
+          <div className="feature-card col-span-1 md:row-span-2 bg-card border border-border rounded-3xl p-8 flex flex-col justify-between hover:shadow-xl transition-all relative overflow-hidden">
             <div className="z-10">
                <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center mb-4">
                 <Sparkles className="w-6 h-6 text-purple-400" />
@@ -64,7 +91,7 @@ export default function FeaturesBento() {
           </div>
 
           {/* Card 3: Inventory (Small) */}
-          <div className="col-span-1 bg-card border border-border rounded-3xl p-6 flex flex-col justify-between hover:shadow-lg transition-all group">
+          <div className="feature-card col-span-1 bg-card border border-border rounded-3xl p-6 flex flex-col justify-between hover:shadow-lg transition-all group">
             <Package className="w-8 h-8 text-orange-400 mb-4" />
             <div>
                  <h3 className="text-lg font-medium">Inventory</h3>
@@ -73,7 +100,7 @@ export default function FeaturesBento() {
           </div>
 
           {/* Card 4: Reports (Small) */}
-          <div className="col-span-1 bg-card border border-border rounded-3xl p-6 flex flex-col justify-between hover:shadow-lg transition-all">
+          <div className="feature-card col-span-1 bg-card border border-border rounded-3xl p-6 flex flex-col justify-between hover:shadow-lg transition-all">
             <Zap className="w-8 h-8 text-yellow-400 mb-4" />
              <div>
                  <h3 className="text-lg font-medium">Instant Reports</h3>
@@ -82,7 +109,7 @@ export default function FeaturesBento() {
           </div>
 
           {/* Card 5: Team (Wide) */}
-          <div className="col-span-1 md:col-span-2 bg-card border border-border rounded-3xl p-8 flex flex-row items-center justify-between hover:shadow-xl transition-all">
+          <div className="feature-card col-span-1 md:col-span-2 bg-card border border-border rounded-3xl p-8 flex flex-row items-center justify-between hover:shadow-xl transition-all">
              <div className="max-w-[60%]">
                 <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center mb-3">
                     <Users className="w-5 h-5 text-green-400" />
@@ -102,7 +129,7 @@ export default function FeaturesBento() {
           </div>
 
           {/* Card 6: Security (Wide) */}
-          <div className="col-span-1 md:col-span-2 bg-card border border-border rounded-3xl p-1 overflow-hidden relative group">
+          <div className="feature-card col-span-1 md:col-span-2 bg-card border border-border rounded-3xl p-1 overflow-hidden relative group">
              <div className="h-full bg-gradient-to-br from-card to-background rounded-[20px] p-8 flex flex-col justify-center items-center text-center relative z-10">
                 <ShieldCheck className="w-12 h-12 text-teal-400 mb-4" />
                 <h3 className="text-xl font-medium mb-2">Enterprise Security</h3>
@@ -116,7 +143,7 @@ export default function FeaturesBento() {
         </div>
         
         <div className="mt-16 text-center">
-             <Link to="/signup" className="text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-2">
+             <Link to="/signup" className="feature-card text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-2">
                 See all features <ArrowRight className="w-4 h-4"/>
              </Link>
         </div>

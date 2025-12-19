@@ -13,9 +13,9 @@ export const ThemeProvider = ({ children }) => {
     root.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
     
-    // Also toggle class for tailwind's 'dark' mode if the theme is dark/midnight/nature/sunset
+    // Also toggle class for tailwind's 'dark' mode if the theme is obsidian/ocean/sunset
     // You might want to customize which metrics count as 'dark'
-    if (['dark', 'midnight', 'nature', 'sunset'].includes(theme)) {
+    if (['obsidian', 'ocean', 'sunset'].includes(theme)) {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
@@ -44,8 +44,7 @@ export const useTheme = () => {
 
 export const themes = [
   { name: 'Light', value: 'light' },
-  { name: 'Dark', value: 'dark' },
-  { name: 'Midnight', value: 'midnight' },
-  { name: 'Nature', value: 'nature' },
+  { name: 'Obsidian', value: 'obsidian' },
+  { name: 'Ocean', value: 'ocean' },
   { name: 'Sunset', value: 'sunset' },
 ];

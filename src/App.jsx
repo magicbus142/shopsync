@@ -18,6 +18,7 @@ import Transactions from './pages/dashboard/Transactions'
 import Reports from './pages/dashboard/Reports'
 import Settings from './pages/dashboard/Settings'
 import InvoiceGenerator from './pages/dashboard/InvoiceGenerator'
+import MarketingHub from './pages/dashboard/MarketingHub'
 
 // Layout Component (Only for Dashboard/Auth pages if needed, Home has its own layout)
 const Layout = ({ children }) => {
@@ -55,6 +56,7 @@ function App() {
             <Route path="transactions" element={<Transactions />} />
             <Route path="reports" element={<Reports />} />
             <Route path="invoice" element={<InvoiceGenerator />} />
+            <Route path="marketing" element={<MarketingHub />} />
             <Route path="settings" element={<Settings />} />
           </Route>
 

@@ -528,7 +528,7 @@ export default function InvoiceGenerator() {
                                     <div className="col-span-12 mb-2">
                                         <div className="flex justify-between items-center mb-1">
                                             <label className="text-[10px] uppercase font-bold text-muted-foreground">Item</label>
-                                            <input type="date" value={item.date || invoiceDate} onChange={e => handleItemChange(item.id, 'date', e.target.value)} className="p-1 text-[10px] border rounded bg-transparent" />
+                                            <input type="date" value={item.date || invoiceDate} onChange={e => handleItemChange(item.id, 'date', e.target.value)} className="p-1 text-[10px] border rounded bg-transparent mr-6" />
                                         </div>
                                         <input list={`products-${item.id}`} type="text" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm font-bold" placeholder="Item Name" />
                                         <datalist id={`products-${item.id}`}>{products.map(p => <option key={p.id} value={p.name}>₹{p.price}</option>)}</datalist>
