@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useReactToPrint } from 'react-to-print'
-import { Plus, Trash2, Printer, Save, Download, FileText, ShoppingBag, Upload, User, Phone, MapPin, Calendar, Hash, CreditCard, Store, Smartphone, Monitor, Share2 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Plus, Trash2, Printer, Save, Download, FileText, ShoppingBag, Upload, User, Phone, MapPin, Calendar, Hash, CreditCard, Store, Smartphone, Monitor, Share2, Languages, Camera } from 'lucide-react'
+import { motion, Reorder } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { format } from 'date-fns'
 import InvoiceTemplate from '../../components/invoice/InvoiceTemplate'
@@ -14,20 +13,19 @@ import { AccordionItem } from '../../components/ui/Accordion'
 export default function InvoiceGenerator() {
   const [loading, setLoading] = useState(true)
   const [products, setProducts] = useState([])
-  const componentRef = useRef()
+  const componentRef = useRef(null)
   const toast = useToast()
   const { currentOrg } = useOrganization()
 
   // UI State
   const [openSections, setOpenSections] = useState(['items', 'payments']) 
-  const [autoScale, setAutoScale] = useState(true)
-  const [scale, setScale] = useState(1)
+  const [autoScale, setAutoScale] = useState(false)
+  const [scale, setScale] = useState(typeof window !== 'undefined' && window.innerWidth < 768 ? 0.5 : 0.75)
   const containerRef = useRef(null)
 
   // Auto-Scaling Logic
   useEffect(() => {
     if (!autoScale || !containerRef.current) {
-        if (!autoScale) setScale(1)
         return
     }
 
@@ -89,6 +87,10 @@ export default function InvoiceGenerator() {
   const [showSignature, setShowSignature] = useState(true)
   const [signatureImage, setSignatureImage] = useState(null)
   
+  // Customer Photo State [NEW]
+  const [showCustomerPhoto, setShowCustomerPhoto] = useState(false)
+  const [customerPhoto, setCustomerPhoto] = useState(null)
+  
   // Watermark State
   const [watermarkText, setWatermarkText] = useState('')
   const [watermarkSize, setWatermarkSize] = useState(80)
@@ -98,7 +100,9 @@ export default function InvoiceGenerator() {
   const [showLogo, setShowLogo] = useState(true) 
   const [logoImage, setLogoImage] = useState(null)
   const [headerAlign, setHeaderAlign] = useState('left')
-  const [templateType, setTemplateType] = useState('modern') // 'modern', 'classic', 'minimal'
+  const [templateType, setTemplateType] = useState('modern')
+  const [brandColor, setBrandColor] = useState('#4F46E5') // [NEW] Default Indigo
+  const [languageMode, setLanguageMode] = useState('both') // 'both', 'en', 'te', 'separate'
   const [paymentDetails, setPaymentDetails] = useState({
       show: false,
       phonePe: '',
@@ -110,7 +114,10 @@ export default function InvoiceGenerator() {
     name: '',
     address: '',
     phone: '',
-    email: ''
+    email: '',
+    website: '',   // [NEW]
+    instagram: '', // [NEW]
+    facebook: ''   // [NEW]
   })
 
   // Load Defaults from LocalStorage (Per Org)
@@ -121,6 +128,7 @@ export default function InvoiceGenerator() {
       if (saved) {
           const parsed = JSON.parse(saved)
           setCompanyDetails(parsed.companyDetails || companyDetails)
+          setBrandColor(parsed.brandColor || '#4F46E5') // [NEW] Load saved color
           setShowSignature(parsed.showSignature ?? true)
           setSignatureImage(parsed.signatureImage || null)
           setShowTerms(parsed.showTerms ?? true)
@@ -129,6 +137,8 @@ export default function InvoiceGenerator() {
           setLogoImage(parsed.logoImage || null)
           setWatermarkText(parsed.watermarkText || '')
           setWatermarkSize(parsed.watermarkSize || 80)
+          setShowCustomerPhoto(parsed.showCustomerPhoto || false)
+          setCustomerPhoto(parsed.customerPhoto || null)
       } else {
           // No saved defaults for this org, initialize with Org Name
           setCompanyDetails({
@@ -150,6 +160,7 @@ export default function InvoiceGenerator() {
       
       localStorage.setItem(`invoice_defaults_${currentOrg.id}`, JSON.stringify({
           companyDetails,
+          brandColor, // [NEW] Save color
           showSignature,
           signatureImage,
           showTerms,
@@ -157,7 +168,9 @@ export default function InvoiceGenerator() {
           showLogo,
           logoImage,
           watermarkText,
-          watermarkSize
+          watermarkSize,
+          showCustomerPhoto, // [NEW] Save preference
+          customerPhoto
       }))
       toast.success('Default settings saved!')
   }
@@ -185,6 +198,58 @@ export default function InvoiceGenerator() {
   const total = subtotal 
   const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0) + items.reduce((acc, item) => acc + Number(item.paid || 0), 0)
   const balanceDue = Math.max(0, total - totalPaid)
+
+  // Customer Autofill Logic
+  const [isCustomerLoading, setIsCustomerLoading] = useState(false)
+
+  // 1. Fetch Customer on Phone Change
+  useEffect(() => {
+      if (!customer.phone || customer.phone.length < 10 || !currentOrg) return
+
+      const fetchCustomer = async () => {
+          setIsCustomerLoading(true)
+          const { data, error } = await supabase
+              .from('customers')
+              .select('*')
+              .eq('organization_id', currentOrg.id)
+              .eq('phone', customer.phone)
+              .single()
+          
+          if (data) {
+              setCustomer(prev => ({
+                  ...prev,
+                  name: data.name || prev.name,
+                  address: data.address || prev.address
+              }))
+              toast.success('✨ Customer found!', { duration: 2000 })
+          }
+          setIsCustomerLoading(false)
+      }
+
+      // Debounce slightly or just run
+      const timer = setTimeout(fetchCustomer, 500)
+      return () => clearTimeout(timer)
+  }, [customer.phone, currentOrg])
+
+  // 2. Save Customer Helper
+  const saveCustomer = async () => {
+      if (!customer.phone || !customer.name || !currentOrg) return
+
+      try {
+          const { error } = await supabase
+              .from('customers')
+              .upsert({
+                  organization_id: currentOrg.id,
+                  phone: customer.phone,
+                  name: customer.name,
+                  address: customer.address
+              }, { onConflict: 'organization_id, phone' })
+              
+          if (error) console.error("Failed to save customer", error)
+      } catch (err) {
+          console.error("Save customer error:", err)
+      }
+  }
 
   // Handlers
   const handleAddItem = () => {
@@ -234,13 +299,13 @@ export default function InvoiceGenerator() {
   }
 
   // Print Handler
-  const handlePrint = useReactToPrint({
-    content: () => componentRef.current,
-    documentTitle: `Invoice-${invoiceNumber}`,
-    onAfterPrint: () => toast.success('Invoice printed successfully!')
-  });
+  const handlePrint = () => {
+    saveCustomer(); // Save customer for next time
+    window.print();
+  };
 
   const handleDownload = () => {
+      saveCustomer(); // Save customer
       const element = componentRef.current
       const opt = {
           margin: 0,
@@ -260,6 +325,7 @@ export default function InvoiceGenerator() {
   }
 
   const handleWhatsAppShare = async () => {
+      saveCustomer(); // Save customer
       const shareText = `*Invoice #${invoiceNumber}*\nDate: ${format(new Date(invoiceDate), 'dd MMM yyyy')}\nBilled To: ${customer.name}\nTotal Amount: ₹${total.toLocaleString()}\n\nPlease find the invoice PDF attached.`
 
       // 1. Desktop / No Native Share: Fast Path
@@ -332,11 +398,41 @@ export default function InvoiceGenerator() {
      showLogo,
      logoImage,
      watermarkText,
-     watermarkSize
+     watermarkSize,
+     showCustomerPhoto,
+     watermarkSize,
+     showCustomerPhoto,
+     customerPhoto,
+     brandColor // [NEW] Pass to template
   };
 
+  const printStyles = `
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #print-content, #print-content * {
+        visibility: visible;
+      }
+      #print-content {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      .no-print {
+        display: none !important;
+      }
+      /* Hide all direct children of body except the app root if needed, but visibility hidden usually suffices */
+    }
+  `;
+
   return (
-    <div className="flex flex-col xl:flex-row xl:h-[calc(100vh-6rem)] h-auto gap-6 transition-all duration-300 ease-in-out">
+    <>
+    <style>{printStyles}</style>
+    <div className="flex flex-col xl:flex-row xl:h-[calc(100vh-6rem)] h-auto gap-6 transition-all duration-300 ease-in-out no-print">
        
        {/* LEFT: EDITOR SECTION (Scrollable) */}
        <div className="w-full xl:w-[450px] flex flex-col h-full bg-background rounded-2xl border border-border overflow-hidden shadow-sm">
@@ -410,6 +506,13 @@ export default function InvoiceGenerator() {
                         <input type="text" value={companyDetails.name} onChange={e => setCompanyDetails({...companyDetails, name: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Shop Name" />
                         <input type="text" value={companyDetails.phone} onChange={e => setCompanyDetails({...companyDetails, phone: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Phone Number" />
                         <textarea value={companyDetails.address} onChange={e => setCompanyDetails({...companyDetails, address: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Shop Address" rows={2} />
+                        
+                        {/* [NEW] Social Media Inputs */}
+                        <div className="grid grid-cols-3 gap-2">
+                             <input type="text" value={companyDetails.website} onChange={e => setCompanyDetails({...companyDetails, website: e.target.value})} className="w-full p-2 rounded-md border border-input text-xs" placeholder="Website" />
+                             <input type="text" value={companyDetails.instagram} onChange={e => setCompanyDetails({...companyDetails, instagram: e.target.value})} className="w-full p-2 rounded-md border border-input text-xs" placeholder="Instagram" />
+                             <input type="text" value={companyDetails.facebook} onChange={e => setCompanyDetails({...companyDetails, facebook: e.target.value})} className="w-full p-2 rounded-md border border-input text-xs" placeholder="Facebook" />
+                        </div>
                      </div>
                  </div>
                </AccordionItem>
@@ -479,8 +582,47 @@ export default function InvoiceGenerator() {
                >
                     <div className="space-y-3">
                         <input type="text" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Customer Name" />
-                        <input type="text" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Phone Number" />
+                        <div className="relative">
+                            <input 
+                                type="text" 
+                                value={customer.phone} 
+                                onChange={e => setCustomer({...customer, phone: e.target.value})} 
+                                className={`w-full p-2 rounded-md border border-input text-sm ${isCustomerLoading ? 'animate-pulse bg-indigo-50' : ''}`} 
+                                placeholder="Phone Number (Auto-fill)" 
+                            />
+                            {isCustomerLoading && (
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                    <span className="loading loading-spinner loading-xs text-primary"></span>
+                                </div>
+                            )}
+                        </div>
                         <textarea value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} className="w-full p-2 rounded-md border border-input text-sm" placeholder="Billing Address" rows={2} />
+                        
+                        <hr className="border-border" />
+                        
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-2"><Camera className="w-3 h-3" /> Customer Photo</span>
+                            <Switch checked={showCustomerPhoto} onChange={setShowCustomerPhoto} />
+                        </div>
+
+                        {showCustomerPhoto && (
+                             <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-muted border border-border rounded flex items-center justify-center overflow-hidden">
+                                    {customerPhoto ? <img src={customerPhoto} className="w-full h-full object-cover" /> : <User className="w-6 h-6 text-muted-foreground/30" />}
+                                </div>
+                                <label className="flex-1 text-xs bg-muted border border-dashed border-border p-2 rounded text-center cursor-pointer hover:bg-muted/80">
+                                    {customerPhoto ? 'Change Photo' : 'Upload Photo'}
+                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                                          const file = e.target.files[0]
+                                          if (file) {
+                                              const reader = new FileReader()
+                                              reader.onloadend = () => setCustomerPhoto(reader.result)
+                                              reader.readAsDataURL(file)
+                                          }
+                                    }} />
+                                </label>
+                             </div>
+                        )}
                         </div>
                     </AccordionItem>
 
@@ -509,6 +651,55 @@ export default function InvoiceGenerator() {
                                     ))}
                                 </div>
                             </div>
+                            
+                            <hr className="border-border" />
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                    <Languages className="w-4 h-4" /> Language
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { id: 'both', label: 'Bilingual (Bi)' },
+                                        { id: 'en', label: 'English Only' },
+                                        { id: 'te', label: 'Telugu Only' },
+                                        { id: 'separate', label: 'Separate Pages' }
+                                    ].map((lang) => (
+                                        <button
+                                            key={lang.id}
+                                            onClick={() => setLanguageMode(lang.id)}
+                                            className={`px-3 py-2 text-xs border rounded-md capitalize transition-colors ${
+                                                languageMode === lang.id 
+                                                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 font-medium' 
+                                                    : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {lang.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <hr className="border-border" />
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Brand Color</label>
+                                <div className="flex items-center gap-3">
+                                    <input 
+                                        type="color" 
+                                        value={brandColor} 
+                                        onChange={(e) => setBrandColor(e.target.value)}
+                                        className="h-10 w-10 p-1 rounded cursor-pointer border border-gray-300" 
+                                    />
+                                    <input 
+                                        type="text" 
+                                        value={brandColor} 
+                                        onChange={(e) => setBrandColor(e.target.value)}
+                                        className="p-2 border rounded-md text-sm uppercase"
+                                        maxLength={7}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </AccordionItem>
 
@@ -520,38 +711,54 @@ export default function InvoiceGenerator() {
                  onToggle={() => toggleSection('items')}
                >
                     <div className="space-y-4">
-                        {items.map((item, i) => (
-                            <div key={item.id} className="p-3 bg-muted/20 rounded-lg border border-border relative group">
-                                <button onClick={() => handleRemoveItem(item.id)} className="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-4 h-4" /></button>
-                                
-                                <div className="grid grid-cols-12 gap-2">
-                                    <div className="col-span-12 mb-2">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <label className="text-[10px] uppercase font-bold text-muted-foreground">Item</label>
-                                            <input type="date" value={item.date || invoiceDate} onChange={e => handleItemChange(item.id, 'date', e.target.value)} className="p-1 text-[10px] border rounded bg-transparent mr-6" />
+                        <Reorder.Group axis="y" values={items} onReorder={setItems} className="space-y-4">
+                            {items.map((item, i) => (
+                                <Reorder.Item key={item.id} value={item} style={{ position: 'relative' }}>
+                                    <div className="p-3 bg-muted/20 rounded-lg border border-border relative group">
+                                        <button onClick={() => handleRemoveItem(item.id)} className="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-4 h-4" /></button>
+                                        
+                                        {/* Drag Handle Indicator (Visual only) */}
+                                        <div className="absolute left-1 top-1/2 -translate-y-1/2 text-muted-foreground/30 cursor-grab active:cursor-grabbing hover:text-muted-foreground">
+                                            <svg width="10" height="20" viewBox="0 0 10 20" fill="currentColor">
+                                                <circle cx="2" cy="2" r="1.5" />
+                                                <circle cx="8" cy="2" r="1.5" />
+                                                <circle cx="2" cy="10" r="1.5" />
+                                                <circle cx="8" cy="10" r="1.5" />
+                                                <circle cx="2" cy="18" r="1.5" />
+                                                <circle cx="8" cy="18" r="1.5" />
+                                            </svg>
                                         </div>
-                                        <input list={`products-${item.id}`} type="text" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm font-bold" placeholder="Item Name" />
-                                        <datalist id={`products-${item.id}`}>{products.map(p => <option key={p.id} value={p.name}>₹{p.price}</option>)}</datalist>
+
+                                        <div className="grid grid-cols-12 gap-2 pl-4"> {/* Added padding-left for drag handle */}
+                                            <div className="col-span-12 mb-2">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <label className="text-[10px] uppercase font-bold text-muted-foreground">Item</label>
+                                                    <input type="date" value={item.date || invoiceDate} onChange={e => handleItemChange(item.id, 'date', e.target.value)} className="p-1 text-[10px] border rounded bg-transparent mr-6" />
+                                                </div>
+                                                <input list={`products-${item.id}`} type="text" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm font-bold" placeholder="Item Name" />
+                                                <datalist id={`products-${item.id}`}>{products.map(p => <option key={p.id} value={p.name}>₹{p.price}</option>)}</datalist>
+                                            </div>
+                                            <div className="col-span-3">
+                                                <label className="text-[10px] uppercase font-bold text-muted-foreground">Qty</label>
+                                                <input type="number" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm text-center" />
+                                            </div>
+                                            <div className="col-span-3">
+                                                <label className="text-[10px] uppercase font-bold text-muted-foreground">Price</label>
+                                                <input type="number" value={item.price} onChange={e => handleItemChange(item.id, 'price', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm text-right" />
+                                            </div>
+                                            <div className="col-span-3">
+                                                <label className="text-[10px] uppercase font-bold text-muted-foreground">Paid</label>
+                                                <input type="number" value={item.paid || 0} onChange={e => handleItemChange(item.id, 'paid', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm text-right text-green-600 bg-green-50" />
+                                            </div>
+                                            <div className="col-span-3 flex flex-col items-end justify-center">
+                                                <span className="text-[10px] text-muted-foreground">Total</span>
+                                                <span className="font-bold text-sm">₹{(item.quantity * item.price).toLocaleString()}</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="col-span-3">
-                                        <label className="text-[10px] uppercase font-bold text-muted-foreground">Qty</label>
-                                        <input type="number" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm text-center" />
-                                    </div>
-                                    <div className="col-span-3">
-                                        <label className="text-[10px] uppercase font-bold text-muted-foreground">Price</label>
-                                        <input type="number" value={item.price} onChange={e => handleItemChange(item.id, 'price', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm text-right" />
-                                    </div>
-                                    <div className="col-span-3">
-                                        <label className="text-[10px] uppercase font-bold text-muted-foreground">Paid</label>
-                                        <input type="number" value={item.paid || 0} onChange={e => handleItemChange(item.id, 'paid', e.target.value)} className="w-full p-1.5 rounded border border-input text-sm text-right text-green-600 bg-green-50" />
-                                    </div>
-                                    <div className="col-span-3 flex flex-col items-end justify-center">
-                                         <span className="text-[10px] text-muted-foreground">Total</span>
-                                        <span className="font-bold text-sm">₹{(item.quantity * item.price).toLocaleString()}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                                </Reorder.Item>
+                            ))}
+                        </Reorder.Group>
                         <button onClick={handleAddItem} className="w-full py-2 bg-primary/5 border border-primary/20 text-primary rounded-lg font-semibold hover:bg-primary/10 transition-colors flex items-center justify-center gap-2">
                             <Plus className="w-4 h-4" /> Add Item
                         </button>
@@ -671,6 +878,14 @@ export default function InvoiceGenerator() {
                     </select>
 
                     <button 
+                       onClick={handlePrint}
+                       className="p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                       title="Print Invoice"
+                   >
+                       <Printer className="w-5 h-5" />
+                   </button>
+
+                    <button 
                        onClick={handleWhatsAppShare}
                        className="p-2 text-[#25D366] hover:bg-[#25D366]/10 rounded-lg transition-colors"
                        title="Share on WhatsApp"
@@ -700,16 +915,34 @@ export default function InvoiceGenerator() {
                      minHeight: '1123px'
                  }}
                >
-                   <InvoiceTemplate data={templateData} templateType={templateType} />
+                   {languageMode === 'separate' ? (
+                       <div className="flex flex-col gap-8">
+                           <InvoiceTemplate data={templateData} templateType={templateType} language="en" />
+                           <InvoiceTemplate data={templateData} templateType={templateType} language="te" />
+                       </div>
+                   ) : (
+                       <InvoiceTemplate data={templateData} templateType={templateType} language={languageMode} />
+                   )}
                </div>
            </div>
             
-            {/* Hidden component for Print/PDF */}
-           <div style={{ position: 'absolute', top: -10000, left: -10000 }}>
-                <InvoiceTemplate ref={componentRef} data={templateData} templateType={templateType} />
-           </div>
-
        </div>
     </div>
+
+   {/* Hidden component for Print/PDF - Moved OUTSIDE the no-print wrapper */}
+   <div className="print-only">
+        <div ref={componentRef} id="print-content">
+            {languageMode === 'separate' ? (
+                <div>
+                    <InvoiceTemplate data={templateData} templateType={templateType} language="en" />
+                    <div style={{ pageBreakBefore: 'always' }} />
+                    <InvoiceTemplate data={templateData} templateType={templateType} language="te" />
+                </div>
+            ) : (
+                <InvoiceTemplate data={templateData} templateType={templateType} language={languageMode} />
+            )}
+        </div>
+   </div>
+   </>
   )
 }

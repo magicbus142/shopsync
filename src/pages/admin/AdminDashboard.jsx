@@ -7,7 +7,8 @@ import {
   CreditCard,
   TrendingUp,
   ShieldAlert,
-  Search
+  Search,
+  Database
 } from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import { format, formatDistanceToNow } from 'date-fns'
@@ -55,6 +56,15 @@ export default function AdminDashboard() {
         console.error('Update Error:', err)
         alert('Failed to update plan: ' + err.message)
      }
+  }
+
+  const formatBytes = (bytes, decimals = 2) => {
+      if (!+bytes) return '0 Bytes'
+      const k = 1024
+      const dm = decimals < 0 ? 0 : decimals
+      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+      const i = Math.floor(Math.log(bytes) / Math.log(k))
+      return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`
   }
 
   // Derived Metrics
@@ -150,6 +160,16 @@ export default function AdminDashboard() {
                    <h3 className="text-2xl font-bold">{totalTransactions.toLocaleString()}</h3>
                 </div>
             </div>
+
+            <div className="bg-card p-6 rounded-2xl border border-border shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600">
+                   <Database className="w-6 h-6" />
+                </div>
+                <div>
+                   <p className="text-sm font-medium text-muted-foreground">Total Data usage</p>
+                   <h3 className="text-2xl font-bold">{formatBytes(stats.reduce((acc, curr) => acc + (parseInt(curr.usage_bytes) || 0), 0))}</h3>
+                </div>
+            </div>
         </div>
 
         {/* Table */}
@@ -168,6 +188,7 @@ export default function AdminDashboard() {
                    <th className="p-4 font-semibold text-muted-foreground">Plan</th>
                    <th className="p-4 font-semibold text-muted-foreground text-center">Usage (Products)</th>
                    <th className="p-4 font-semibold text-muted-foreground text-center">Usage (Txns)</th>
+                   <th className="p-4 font-semibold text-muted-foreground text-center">Data Size</th>
                    <th className="p-4 font-semibold text-muted-foreground">Last Active</th>
                    <th className="p-4 font-semibold text-muted-foreground">Joined At</th>
                  </tr>
@@ -209,6 +230,11 @@ export default function AdminDashboard() {
                         </span>
                         <span className="text-xs text-muted-foreground ml-1">
                           / {org.plan_key === 'free' ? '50' : '∞'}
+                        </span>
+                     </td>
+                     <td className="p-4 text-center">
+                        <span className="font-mono font-medium text-muted-foreground">
+                          {formatBytes(org.usage_bytes)}
                         </span>
                      </td>
                      <td className="p-4">

@@ -140,6 +140,28 @@ export default function Transactions() {
     const { data } = await supabase.from('workers').select('*').eq('organization_id', currentOrg.id)
     setWorkers(data || [])
   }
+
+  // Helper to recalculate and update transaction status
+  const updateTransactionStatus = async (transactionId) => {
+      // 1. Fetch Transaction Amount
+      const { data: tx } = await supabase.from('transactions').select('amount').eq('id', transactionId).single()
+      if (!tx) return
+
+      // 2. Fetch All Payments
+      const { data: payments } = await supabase.from('transaction_payments').select('amount').eq('transaction_id', transactionId)
+      const totalPaid = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0
+
+      // 3. Determine Status
+      let status = 'Pending'
+      if (totalPaid >= tx.amount) status = 'Paid'
+      else if (totalPaid > 0) status = 'Partial'
+
+      // 4. Update Transaction allow partial updates
+      await supabase.from('transactions').update({ 
+          amount_paid: totalPaid,
+          payment_status: status 
+      }).eq('id', transactionId)
+  }
   
   const fetchPaymentHistory = async (transactionId) => {
     const { data } = await supabase
@@ -275,6 +297,9 @@ export default function Transactions() {
               await supabase.from('transaction_items').insert(itemsPayload)
           }
 
+          // Recalculate status based on new amount
+          await updateTransactionStatus(editingId)
+
       } else {
           // INSERT
           const { data: newTx, error } = await supabase.from('transactions').insert([payload]).select().single()
@@ -344,6 +369,9 @@ export default function Transactions() {
              payment_method: newPay.payment_method
           }])
           if (error) throw error
+          
+          await updateTransactionStatus(viewTransaction.id) // Recalculate status
+
           toast.success("Payment recorded")
           handleView(viewTransaction) // Refresh
           fetchTransactions() // Refresh main list status
@@ -356,6 +384,9 @@ export default function Transactions() {
   const handleRemovePartialPayment = async (ppId) => {
       try {
           await supabase.from('transaction_payments').delete().eq('id', ppId)
+          
+          await updateTransactionStatus(viewTransaction.id) // Recalculate status
+
           toast.success("Payment removed")
           handleView(viewTransaction)
           fetchTransactions()
@@ -379,7 +410,13 @@ export default function Transactions() {
       }
 
       if (filterType !== 'all' && t.type !== filterType) return false
-      if (filterStatus !== 'all' && t.payment_status !== filterStatus) return false
+      if (filterStatus !== 'all') {
+          if (filterStatus === 'Unpaid') {
+              if (t.payment_status === 'Paid') return false
+          } else {
+              if (t.payment_status !== filterStatus) return false
+          }
+      }
       if (filterMethod !== 'all' && t.payment_method !== filterMethod) return false
       
       // Date Range
@@ -497,8 +534,7 @@ export default function Transactions() {
                     >
                         <option value="all">All Status</option>
                         <option value="Paid">Paid</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Partial">Partial</option>
+                        <option value="Unpaid">Unpaid (Pending & Partial)</option>
                     </select>
 
                     {/* Type Filter */}

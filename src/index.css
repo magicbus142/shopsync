@@ -1,6 +1,25 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
+@media print {
+  @page { margin: 0; size: auto; }
+  body { visibility: hidden; }
+  .no-print { display: none !important; }
+  #print-content { 
+    visibility: visible; 
+    position: absolute; 
+    left: 0; 
+    top: 0; 
+    width: 100%; 
+  }
+  #print-content * { visibility: visible; }
+  /* Hide typical specific elements just in case */
+  nav, header, aside, .sidebar { display: none !important; }
+  
+  /* Ensure background colors print */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+
 @layer base {
   :root {
     /* Base Variables Shared */

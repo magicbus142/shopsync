@@ -1,24 +1,43 @@
 import React from 'react';
-import { Phone } from 'lucide-react';
+import { Phone, Globe, Instagram, Facebook } from 'lucide-react';
 import phonePeLogo from '../../assets/phonepe.png'
 import googlePayLogo from '../../assets/google-pay.png'
+import { INVOICE_TRANSLATIONS } from '../../utils/translations';
 
-export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern' }, ref) => {
+export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern', language = 'both' }, ref) => {
   const { 
     customer, items, invoiceDate, invoiceNumber, subtotal, 
     total, payments = [], totalPaid = 0, balanceDue = 0, 
     showSignature, signatureImage, companyDetails, 
     showTerms, paymentDetails, showLogo, logoImage,
     watermarkText, watermarkSize = 80, 
-    documentTitle = 'INVOICE'
+    documentTitle = 'INVOICE',
+    showCustomerPhoto, customerPhoto // [NEW]
   } = data;
 
   // Theme Config
   const isClassic = templateType === 'classic';
   const isMinimal = templateType === 'minimal';
   
-  const BRAND_COLOR = isClassic ? '#111827' : '#4F46E5'; // Black for Classic, Indigo for others
+  const BRAND_COLOR = data.brandColor || (isClassic ? '#111827' : '#4F46E5'); // Use dynamic color provided by generator
   const FONT_FAMILY = isClassic ? '"Times New Roman", serif' : 'Helvetica, Arial, sans-serif';
+
+    // Translation Helper
+    const t = (text) => {
+        if (language === 'en') return text;
+        const trans = INVOICE_TRANSLATIONS[text];
+        if (language === 'te') return trans || text;
+        // 'both'
+        return trans ? `${text} / ${trans}` : text;
+    };
+
+    // Document Title Translation
+    const translatedTitle = (() => {
+        if (language === 'en') return documentTitle;
+        const trans = INVOICE_TRANSLATIONS[documentTitle];
+        if (language === 'te') return trans || documentTitle;
+        return trans ? `${documentTitle} / ${trans}` : documentTitle;
+    })();
 
   // Dynamic Styles
   const styles = {
@@ -209,17 +228,35 @@ export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern'
                  <Phone size={14} style={{ marginRight: '6px', color: BRAND_COLOR }} />
                  <span style={{ fontWeight: 500 }}>{companyDetails?.phone || '+91 00000 00000'}</span>
              </div>
+             {/* [NEW] Social Media Links */}
+             <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+                {companyDetails.website && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px' }}>
+                        <Globe size={10} /> {companyDetails.website}
+                    </div>
+                )}
+                {companyDetails.instagram && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px' }}>
+                        <Instagram size={10} /> {companyDetails.instagram}
+                    </div>
+                )}
+                {companyDetails.facebook && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px' }}>
+                        <Facebook size={10} /> {companyDetails.facebook}
+                    </div>
+                )}
+            </div>
          </div>
 
          <div style={styles.headerRight}>
-             <h1 style={styles.title}>{documentTitle}</h1>
+             <h1 style={styles.title}>{translatedTitle}</h1>
              <div style={{ marginTop: '12px' }}>
                  <div style={styles.invoiceMetaRow}>
-                     <span style={styles.metaLabel}>Invoice No:</span>
+                     <span style={styles.metaLabel}>{t('Invoice No')}:</span>
                      <span style={styles.metaValue}>{invoiceNumber}</span>
                  </div>
                  <div style={styles.invoiceMetaRow}>
-                     <span style={styles.metaLabel}>Date:</span>
+                     <span style={styles.metaLabel}>{t('Date')}:</span>
                      <span style={styles.metaValue}>{invoiceDate}</span>
                  </div>
              </div>
@@ -229,11 +266,28 @@ export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern'
        {/* Billed To */}
        <div style={styles.billedToSection}>
          <div>
-           <div style={styles.sectionLabel}>Billed To:</div>
+           <div style={styles.sectionLabel}>{t('Billed To')}:</div>
            <p style={styles.customerName}>{customer.name || 'Customer Name'}</p>
            <p style={styles.customerDetails}>{customer.address || 'Address Line 1\nCity, State, Zip'}</p>
            {customer.phone && <p style={{...styles.customerDetails, marginTop: '4px'}}>Phone: {customer.phone}</p>}
          </div>
+         
+         {/* [NEW] Customer Photo */}
+         {showCustomerPhoto && customerPhoto && (
+            <div style={{ marginLeft: '20px' }}>
+                <img 
+                   src={customerPhoto} 
+                   alt="Customer" 
+                   style={{ 
+                       width: '80px', 
+                       height: '80px', 
+                       objectFit: 'cover', 
+                       borderRadius: '4px', // Rounded square for professional look
+                       border: '1px solid #e5e7eb'
+                   }} 
+                />
+            </div>
+         )}
        </div>
 
        {/* Table */}
@@ -241,13 +295,13 @@ export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern'
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={{...styles.th, width: '12%', borderTopLeftRadius: isClassic ? 0 : '4px'}}>Date</th>
-                  <th style={{...styles.th, width: '28%'}}>Item Description</th>
-                  <th style={{...styles.th, width: '8%', textAlign: 'center'}}>Qty</th>
-                  <th style={{...styles.th, width: '12%', textAlign: 'right'}}>Price</th>
-                  <th style={{...styles.th, width: '12%', textAlign: 'right'}}>Amount</th>
-                  <th style={{...styles.th, width: '12%', textAlign: 'right'}}>Paid</th>
-                  <th style={{...styles.th, width: '16%', textAlign: 'right', borderTopRightRadius: isClassic ? 0 : '4px', borderRight: isClassic ? '1px solid #000' : 'none'}}>Pending</th>
+                  <th style={{...styles.th, width: '12%', borderTopLeftRadius: isClassic ? 0 : '4px'}}>{t('Date')}</th>
+                  <th style={{...styles.th, width: '28%'}}>{t('Item Description')}</th>
+                  <th style={{...styles.th, width: '8%', textAlign: 'center'}}>{t('Qty')}</th>
+                  <th style={{...styles.th, width: '12%', textAlign: 'right'}}>{t('Price')}</th>
+                  <th style={{...styles.th, width: '12%', textAlign: 'right'}}>{t('Amount')}</th>
+                  <th style={{...styles.th, width: '12%', textAlign: 'right'}}>{t('Paid')}</th>
+                  <th style={{...styles.th, width: '16%', textAlign: 'right', borderTopRightRadius: isClassic ? 0 : '4px', borderRight: isClassic ? '1px solid #000' : 'none'}}>{t('Pending')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -259,7 +313,7 @@ export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern'
                   return (
                   <tr key={index}>
                     <td style={styles.td}>
-                        <div style={{ color: '#4b5563', fontSize: '11px' }}>{item.date ? new Date(item.date).toLocaleDateString('en-IN') : '-'}</div>
+                        <div style={{ color: '#4b5563', fontSize: '11px' }}>{item.date ? new Date(item.date).toLocaleDateString(language === 'te' ? 'te-IN' : 'en-IN') : '-'}</div>
                     </td>
                     <td style={styles.td}>
                         <div style={{ fontWeight: '600', color: '#111827' }}>{item.name}</div>
@@ -282,13 +336,13 @@ export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern'
              <div style={styles.totalsBox}>
                {/* Subtotal */}
                <div style={{...styles.totalRow, paddingBottom: '4px'}}>
-                 <span style={{ color: '#6b7280' }}>Subtotal:</span>
+                 <span style={{ color: '#6b7280' }}>{t('Subtotal')}:</span>
                  <span style={{ fontWeight: '600', color: '#111827' }}>₹{subtotal.toLocaleString()}</span>
                </div>
                
                {/* Main Total */}
                <div style={{...styles.finalTotalRow, borderTop: `1px solid #e5e7eb`, paddingTop: '12px', marginTop: '12px', borderBottom: '1px solid #e5e7eb', paddingBottom: '12px'}}>
-                 <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#111827' }}>Total:</span>
+                 <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#111827' }}>{t('Total')}:</span>
                  <span style={{ fontWeight: 'bold', fontSize: '16px', color: BRAND_COLOR }}>₹{total.toLocaleString()}</span>
                </div>
 
@@ -296,7 +350,7 @@ export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern'
                {payments && payments.length > 0 && (
                    <div style={{ marginTop: '16px' }}>
                        <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#6b7280', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>
-                           Payment History
+                           {t('Payment History')}
                        </div>
                        
                        {payments.map(p => (
@@ -309,7 +363,7 @@ export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern'
                        <div style={{ borderTop: '1px solid #e5e7eb', margin: '8px 0' }}></div>
 
                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '8px' }}>
-                          <span style={{ color: '#4b5563' }}>Total Paid:</span>
+                          <span style={{ color: '#4b5563' }}>{t('Total Paid')}:</span>
                           <span style={{ fontWeight: 'bold', color: '#059669' }}>₹{totalPaid.toLocaleString()}</span>
                        </div>
                    </div>
@@ -326,7 +380,7 @@ export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern'
                    marginTop: '8px',
                    border: '1px solid #fecaca'
                }}>
-                 <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#111827' }}>Balance Due:</span>
+                 <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#111827' }}>{t('Balance Due')}:</span>
                  <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#dc2626' }}>₹{balanceDue.toLocaleString()}</span>
                </div>
              </div>
@@ -338,7 +392,7 @@ export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern'
           <div style={styles.termsBox}>
              {paymentDetails.show && (
                  <div style={{ marginBottom: '20px' }}>
-                      <div style={styles.sectionLabel}>Payment Options</div>
+                      <div style={styles.sectionLabel}>{t('Payment Options')}</div>
                       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
                          {paymentDetails.phonePe && (
                              <div style={{ display: 'flex', alignItems: 'center', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
@@ -363,11 +417,11 @@ export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern'
              
              {showTerms && (
                  <div>
-                     <div style={styles.sectionLabel}>Terms & Conditions</div>
+                     <div style={styles.sectionLabel}>{t('Terms & Conditions')}</div>
                      <ul style={{ paddingLeft: '14px', margin: 0, fontSize: '11px', color: '#6b7280', lineHeight: '1.5' }}>
-                         <li>Goods once sold will not be taken back.</li>
-                         <li>Interest @ 18% p.a. will be charged if payment is not made within the due date.</li>
-                         <li>Subject to local jurisdiction.</li>
+                         <li>{t('Goods once sold will not be taken back.')}</li>
+                         <li>{t('Interest @ 18% p.a. will be charged if payment is not made within the due date.')}</li>
+                         <li>{t('Subject to local jurisdiction.')}</li>
                      </ul>
                  </div>
              )}
@@ -379,7 +433,7 @@ export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern'
                      {signatureImage && <img src={signatureImage} style={{ maxHeight: '60px', marginBottom: '8px' }} alt="Signature" />}
                      <div style={{ borderTop: '1px solid #1f2937', width: '160px', paddingTop: '8px' }}>
                          <p style={{ fontSize: '11px', fontWeight: 'bold', margin: 0, textTransform: 'uppercase' }}>{companyDetails.name}</p>
-                         <p style={{ fontSize: '11px', color: '#6b7280', margin: 0 }}>Authorized Signatory</p>
+                         <p style={{ fontSize: '11px', color: '#6b7280', margin: 0 }}>{t('Authorized Signatory')}</p>
                      </div>
                  </div>
              )}
