@@ -13,7 +13,8 @@ import {
   Shield,
   FileText,
   BarChart3,
-  Megaphone
+  Megaphone,
+  CreditCard
 } from 'lucide-react'
 import { OrganizationSelector } from '../organization/OrganizationSelector'
 
@@ -26,6 +27,7 @@ const SIDEBAR_ITEMS = [
   { icon: UsersIcon, label: "Workers", href: "/dashboard/workers" },
   { icon: Receipt, label: "Transactions", href: "/dashboard/transactions" },
   { icon: FileText, label: "Invoice", href: "/dashboard/invoice" },
+  { icon: CreditCard, label: "Subscription", href: "/dashboard/subscription" },
   // { icon: BarChart3, label: "Marketing Hub", href: "/dashboard/marketing" },
   { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ];
@@ -74,10 +76,22 @@ export default function DashboardLayout({ children }) {
     checkAuthAndFetchProfile();
   }, [navigate]);
 
-  // Menu Logic: Admins see Admin Link + Standard Items
-  let menuItems = [...SIDEBAR_ITEMS];
-  if (isAdmin) {
-    menuItems.push({ icon: Shield, label: "Platform Admin", href: "/admin" });
+  // Menu Logic
+  const isAdminPath = location.pathname.startsWith('/admin');
+  let menuItems = [];
+
+  if (isAdminPath) {
+    // Admin View Sidebar
+    menuItems = [
+      { icon: Shield, label: "Platform Overview", href: "/admin" },
+      { icon: LayoutDashboard, label: "Back to My Shop", href: "/dashboard" }
+    ];
+  } else {
+    // Standard Shop View Sidebar
+    menuItems = [...SIDEBAR_ITEMS];
+    if (isAdmin) {
+      menuItems.push({ icon: Shield, label: "Platform Admin", href: "/admin" });
+    }
   }
 
   const handleLogout = async () => {

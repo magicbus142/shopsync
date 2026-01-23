@@ -566,31 +566,42 @@ export default function Transactions() {
                   const pendingAmount = Number(transaction.amount) - (Number(transaction.amount_paid) || 0)
                   
                   return (
-                <div 
+                  <div 
                     key={transaction.id} 
-                    className="p-4 hover:bg-muted/50 transition-colors flex flex-col md:flex-row items-center gap-4 group cursor-pointer"
+                    className="p-4 hover:bg-muted/50 transition-colors flex flex-col md:flex-row items-center gap-4 group cursor-pointer border-[0.5px] border-border md:border-none rounded-xl md:rounded-none mb-3 md:mb-0 shadow-sm md:shadow-none bg-card md:bg-transparent"
                     onClick={() => handleView(transaction)}
-                >
+                  >
                   {/* Icon & Description */}
-                  <div className="flex items-center gap-4 w-full md:w-[32%]">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isPositive ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                          {isPositive ? <ArrowDownLeft className="w-5 h-5"/> : <ArrowUpRight className="w-5 h-5"/>}
+                  <div className="flex items-start gap-4 w-full md:w-[32%]">
+                      <div className={`w-12 h-12 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0 ${isPositive ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                          {isPositive ? <ArrowDownLeft className="w-6 h-6 md:w-5 md:h-5"/> : <ArrowUpRight className="w-6 h-6 md:w-5 md:h-5"/>}
                       </div>
-                      <div className="min-w-0">
-                          <p className="font-bold text-foreground truncate">{transaction.party_name || transaction.description || 'Untitled Transaction'}</p>
-                          <p className="text-xs text-muted-foreground">{format(new Date(transaction.date), 'yyyy-MM-dd')}</p>
+                      <div className="min-w-0 flex-1">
+                          <p className="font-bold text-foreground truncate break-words line-clamp-1" title={transaction.party_name || transaction.description || 'Untitled Transaction'}>
+                            {transaction.party_name || transaction.description || 'Untitled Transaction'}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(transaction.date), 'yyyy-MM-dd')}</p>
+                          {/* Mobile Only Extras */}
+                          <div className="md:hidden flex items-center gap-2 mt-2">
+                            <span className="px-2 py-0.5 bg-muted/50 text-muted-foreground rounded text-[10px] font-bold uppercase border border-border/50">
+                                {transaction.category}
+                            </span>
+                            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${transaction.payment_status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : transaction.payment_status === 'Pending' ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                                {transaction.payment_status}
+                            </span>
+                          </div>
                       </div>
                   </div>
 
-                   {/* Category Pill */}
-                   <div className="w-full md:w-[18%] pl-2">
+                   {/* Category Pill (Desktop) */}
+                   <div className="hidden md:block w-full md:w-[18%] pl-2">
                         <span className="px-3 py-1 bg-muted/50 text-muted-foreground rounded-lg text-[10px] font-bold uppercase tracking-wider border border-border/50">
                             {transaction.category}
                         </span>
                    </div>
 
-                  {/* Status with Dot */}
-                  <div className="w-full md:w-[18%] flex items-center gap-2">
+                  {/* Status with Dot (Desktop) */}
+                  <div className="hidden md:flex w-full md:w-[18%] items-center gap-2">
                        <div className={`w-1.5 h-1.5 rounded-full ${transaction.payment_status === 'Paid' ? 'bg-emerald-500' : transaction.payment_status === 'Pending' ? 'bg-rose-500' : 'bg-amber-500'}`} />
                        <span className={`text-xs font-bold uppercase ${transaction.payment_status === 'Paid' ? 'text-emerald-600' : transaction.payment_status === 'Pending' ? 'text-rose-600' : 'text-amber-600'}`}>
                            {transaction.payment_status}
@@ -598,17 +609,21 @@ export default function Transactions() {
                   </div>
 
                   {/* Amount */}
-                  <div className="w-full md:w-[20%] text-right pr-8">
-                       <p className={`font-bold text-base ${isPositive ? 'text-emerald-600' : 'text-foreground'}`}>
-                           {isPositive ? '+' : '-'} ₹{Number(transaction.amount).toLocaleString()}
-                       </p>
-                       {transaction.payment_status === 'Partial' && pendingAmount > 0 && (
-                           <p className="text-[10px] font-bold text-amber-600 uppercase">Due: ₹{pendingAmount.toLocaleString()}</p>
-                       )}
+                  <div className="w-full md:w-[20%] flex flex-row md:flex-col justify-between items-center md:items-end md:text-right pr-0 md:pr-8 mt-2 md:mt-0 pt-3 md:pt-0 border-t md:border-none border-border/50">
+                       <span className="text-sm font-medium text-muted-foreground md:hidden">Amount</span>
+                       <div className='text-right'>
+                            <p className={`font-bold text-lg md:text-base ${isPositive ? 'text-emerald-600' : 'text-foreground'}`}>
+                                {isPositive ? '+' : '-'} ₹{Number(transaction.amount).toLocaleString()}
+                            </p>
+                            {transaction.payment_status === 'Partial' && pendingAmount > 0 && (
+                                <p className="text-[10px] font-bold text-amber-600 uppercase">Due: ₹{pendingAmount.toLocaleString()}</p>
+                            )}
+                       </div>
                   </div>
                   
-                  {/* Actions */}
-                  <div className="w-full md:w-[12%] flex justify-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                  {/* Actions (Desktop hover / Mobile context maybe?) */}
+                  {/* Actions (Desktop hover / Mobile context maybe?) */}
+                  <div className="flex w-full md:w-[12%] justify-end md:justify-center gap-2 md:gap-1 mt-3 md:mt-0 pt-3 md:pt-0 border-t md:border-none border-border/50 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                       <button onClick={() => handleView(transaction)} className="p-2 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="View Details">
                           <Eye className="w-4 h-4"/>
                       </button>
@@ -630,6 +645,34 @@ export default function Transactions() {
          {filteredTransactions.length > itemsPerPage && <div className="border-t border-border p-4 bg-muted/50"><Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} /></div>}
       </div>
 
+      {/* Mobile FAB */}
+      <div className="md:hidden fixed bottom-24 right-4 z-40 flex flex-col gap-3">
+          {/* <button 
+                onClick={() => { 
+                    setEditingId(null); 
+                    setFormData({...initialFormState, type: 'expense'}); 
+                    setActiveTab('expense'); 
+                    setShowModal(true); 
+                }} 
+                className="w-12 h-12 bg-slate-900 text-white rounded-full shadow-lg shadow-slate-900/40 flex items-center justify-center transform hover:scale-105 active:scale-95 transition-all"
+                title="Add Expense"
+            >
+              <ArrowUpRight className="w-6 h-6" />
+          </button> */}
+          <button 
+                onClick={() => { 
+                    setEditingId(null); 
+                    setFormData({...initialFormState, type: 'income'}); 
+                    setActiveTab('income'); 
+                    setShowModal(true); 
+                }} 
+                className="w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-xl shadow-primary/40 flex items-center justify-center transform hover:scale-105 active:scale-95 transition-all"
+                title="Record Sale"
+            >
+              <Plus className="w-8 h-8" />
+          </button>
+      </div>
+
        {/* View Details Modal - Digital Receipt Style */}
        <AnimatePresence>
         {viewTransaction && (
@@ -638,111 +681,98 @@ export default function Transactions() {
                 initial={{ opacity: 0, scale: 0.95, y: 20 }} 
                 animate={{ opacity: 1, scale: 1, y: 0 }} 
                 exit={{ opacity: 0, scale: 0.95, y: 20 }} 
-                className={`bg-card w-full max-w-5xl h-[90vh] md:h-[85vh] rounded-3xl shadow-2xl overflow-hidden border border-border relative flex flex-col md:flex-row ${viewTransaction.type === 'income' ? 'border-l-8 border-l-emerald-500' : 'border-l-8 border-l-rose-500'}`}
+                className="bg-card w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-xl overflow-hidden flex flex-col relative"
                 onClick={e => e.stopPropagation()}
              >
-                    {/* LEFT COLUMN: Header & Key Info (Fixed on Desktop) */}
-                    <div className="w-full md:w-[42%] h-full flex flex-col p-8 md:p-10 border-b md:border-b-0 md:border-r border-border/40 bg-card overflow-y-auto md:overflow-hidden relative z-10">
-                        {/* Header & Close (Mobile) */}
-                        <div className="flex justify-between items-start mb-8">
-                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transform rotate-[-6deg] ${viewTransaction.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                                  {viewTransaction.type === 'income' ? <ArrowDownLeft className="w-8 h-8"/> : <ArrowUpRight className="w-8 h-8"/>}
-                             </div>
-                             {/* Mobile Close Button */}
-                             <button onClick={() => setViewTransaction(null)} className="md:hidden p-2 bg-muted hover:bg-muted/80 rounded-full transition-colors">
-                                 <X className="w-5 h-5 text-muted-foreground" />
-                             </button>
-                        </div>
-
-                        {/* Content Container (Scrollable on mobile only) */}
-                        <div className="flex-1 flex flex-col">
-                            {/* Amount Display */}
-                            <div className="mb-10">
-                                <p className="text-sm font-extrabold text-muted-foreground uppercase tracking-wider mb-2">{viewTransaction.category}</p>
-                                <h2 className="text-5xl font-black tracking-tight text-foreground mb-4">₹{Number(viewTransaction.amount).toLocaleString()}</h2>
+                    {/* Header Section */}
+                    <div className="p-6 md:p-8 flex-shrink-0">
+                        <div className="flex justify-between items-start">
+                             <div>
+                                <div className="flex items-center gap-2 mb-2 text-muted-foreground font-semibold">
+                                    {viewTransaction.type === 'income' ? <ArrowDownLeft className="w-5 h-5 text-emerald-500" /> : <ArrowUpRight className="w-5 h-5 text-rose-500" />}
+                                    <span className="text-sm uppercase tracking-wide">{viewTransaction.type === 'income' ? 'Sales / Income' : 'Expense'}</span>
+                                </div>
+                                <h2 className="text-5xl font-bold tracking-tight text-foreground mb-3">₹{Number(viewTransaction.amount).toLocaleString()}</h2>
                                 <div className="flex items-center gap-3">
-                                    <span className={`px-3 py-1 rounded-lg text-xs font-bold border ${viewTransaction.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
-                                        {viewTransaction.payment_status.toUpperCase()}
+                                    <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider ${viewTransaction.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : viewTransaction.payment_status === 'Pending' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'}`}>
+                                        {viewTransaction.payment_status}
                                     </span>
-                                    <span className="text-sm text-foreground font-semibold">{format(new Date(viewTransaction.date), 'dd MMMM yyyy')}</span>
+                                    <span className="text-sm text-muted-foreground font-medium">{format(new Date(viewTransaction.date), 'dd MMMM yyyy')}</span>
                                 </div>
-                            </div>
+                             </div>
 
-                            {/* Basic Details Grid */}
-                            <div className="grid grid-cols-1 gap-6 text-sm mb-6">
-                                <div>
-                                    <p className="text-muted-foreground font-medium mb-1">Payment Method</p>
-                                    <p className="font-bold text-xl text-foreground">{viewTransaction.payment_method || 'Cash'}</p>
-                                </div>
-                                <div>
-                                    <p className="text-muted-foreground font-medium mb-1">{viewTransaction.type === 'income' ? 'Received From' : 'Paid To'}</p>
-                                    <p className="font-bold text-xl text-foreground">{viewTransaction.party_name || viewTransaction.description || 'N/A'}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                         {/* Actions & Audit (Pushed to bottom) */}
-                        <div className="mt-auto space-y-4 pt-6">
-                            {/* Audit Log Peek */}
-                            <AuditHistory tableName="transactions" recordId={viewTransaction.id} />
-
-                            <button
-                                onClick={() => {
-                                    const t = viewTransaction
-                                    const itemsText = viewItems.map(i => `${i.quantity} x ${getProductName(i.product_id)}`).join(', ')
-                                    const text = `*Invoice Spec*\n\nTransaction: #${t.id}\nAmount: ₹${Number(t.amount).toLocaleString()}\nStatus: ${t.payment_status}\n\n*Verified by ShopSync*`
-                                    const url = `https://wa.me/?text=${encodeURIComponent(text)}`
-                                    window.open(url, '_blank')
-                                }}
-                                className="w-full py-4 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-transform active:scale-[0.98] shadow-lg shadow-[#25D366]/20"
-                            >
-                                <Share2 className="w-5 h-5" /> Share Receipt on WhatsApp
-                            </button>
+                             <div className="flex flex-col items-end gap-2">
+                                <button onClick={() => setViewTransaction(null)} className="p-2 hover:bg-muted rounded-full transition-colors">
+                                    <X className="w-5 h-5 text-muted-foreground" />
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const t = viewTransaction
+                                        const text = `*Invoice Spec*\n\nTransaction: #${t.id}\nAmount: ₹${Number(t.amount).toLocaleString()}\nStatus: ${t.payment_status}\nVerified by ShopSync`
+                                        const url = `https://wa.me/?text=${encodeURIComponent(text)}`
+                                        window.open(url, '_blank')
+                                    }}
+                                    className="hidden md:flex bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg text-sm font-bold items-center gap-2 transition-colors shadow-md shadow-primary/20"
+                                >
+                                    <Share2 className="w-4 h-4" /> Share Receipt
+                                </button>
+                             </div>
                         </div>
                     </div>
 
-                    {/* RIGHT COLUMN: Items & History (Independently Scrollable) */}
-                    <div className="w-full md:w-[58%] h-full bg-muted/5 overflow-y-auto p-6 md:p-8 space-y-6 relative custom-scrollbar">
-                        {/* Desktop Close Button (Top Right) */}
-                         <button onClick={() => setViewTransaction(null)} className="hidden md:flex absolute top-4 right-4 p-2 bg-muted/50 hover:bg-muted rounded-full transition-colors z-20">
-                             <X className="w-5 h-5 text-muted-foreground" />
-                         </button>
-
-                        {/* Items Section */}
-                        <div className="bg-card border border-border/60 rounded-2xl p-6 shadow-sm">
-                                <h4 className="text-xs font-bold uppercase text-muted-foreground mb-5 flex items-center gap-2 tracking-wider">
-                                    <Package className="w-4 h-4" /> Items Purchased
-                                </h4>
-                                {viewItems.length > 0 ? (
-                                    <div className="space-y-4">
-                                        {viewItems.map((item, idx) => (
-                                            <div key={idx} className="flex justify-between items-center text-sm border-b border-border/40 last:border-0 pb-3 last:pb-0">
+                     {/* Scrollable Content */}
+                    <div className="flex-1 overflow-y-auto px-6 md:px-8 pb-8 space-y-6 custom-scrollbar">
+                        
+                        {/* Items Section - Hide for Salary/Wages */}
+                        {!['Salary', 'Wages'].includes(viewTransaction.category) && (
+                            <div className="rounded-xl overflow-hidden border border-border shadow-sm">
+                                <div className="bg-primary/90 px-4 py-2.5">
+                                    <h4 className="text-xs font-bold text-primary-foreground uppercase tracking-wider">Items Purchased</h4>
+                                </div>
+                                <div className="bg-card p-4 space-y-3">
+                                    {viewItems.length > 0 ? (
+                                        viewItems.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between items-center text-sm border-b border-dashed border-border/60 last:border-0 pb-2 last:pb-0">
                                                 <div className="flex items-center gap-3">
-                                                     <span className="font-bold text-foreground bg-muted w-8 h-8 flex items-center justify-center rounded-lg text-xs">{item.quantity}x</span> 
-                                                     <span className="font-medium text-foreground text-base">{getProductName(item.product_id)}</span>
+                                                    <span className="w-7 h-7 flex items-center justify-center bg-muted rounded-md text-xs font-bold text-muted-foreground">{item.quantity}x</span> 
+                                                    <span className="font-medium text-foreground">{getProductName(item.product_id)}</span>
                                                 </div>
-                                                <span className="font-bold text-base">₹{item.total_price.toLocaleString()}</span>
+                                                <span className="font-bold">₹{item.total_price.toLocaleString()}</span>
                                             </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-8 text-muted-foreground text-sm bg-muted/20 rounded-xl border border-dashed border-border/60">
-                                        No items linked
-                                    </div>
-                                )}
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-4 text-muted-foreground text-xs italic">No items linked</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Payment History (Includes Summary) */}
+                        <div className="rounded-xl overflow-hidden border border-border shadow-sm">
+                             <div className="bg-primary/90 px-4 py-2.5">
+                                <h4 className="text-xs font-bold text-primary-foreground uppercase tracking-wider">Payment History</h4>
+                            </div>
+                            <div className="p-6">
+                                <PaymentHistory 
+                                    payments={paymentHistory} 
+                                    totalAmount={Number(viewTransaction.amount)}
+                                    readOnly={true}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Bottom Info */}
+                        <div className="grid grid-cols-2 gap-4">
+                             <div className="p-4 rounded-xl border border-border bg-muted/20">
+                                  <p className="text-xs text-muted-foreground font-medium mb-1">Payment Method</p>
+                                  <p className="font-bold text-foreground">{viewTransaction.payment_method || 'Cash'}</p>
+                             </div>
+                             <div className="p-4 rounded-xl border border-border bg-muted/20">
+                                  <p className="text-xs text-muted-foreground font-medium mb-1">{viewTransaction.type === 'income' ? 'Received From' : 'Paid To'}</p>
+                                  <p className="font-bold text-foreground">{viewTransaction.party_name || viewTransaction.description || 'N/A'}</p>
+                             </div>
                         </div>
                         
-                        {/* Payment History Section */}
-                        <div className="bg-card border border-border/60 rounded-2xl p-6 shadow-sm">
-                            <h4 className="text-xs font-bold uppercase text-muted-foreground mb-5 flex items-center gap-2 tracking-wider">
-                                    <IndianRupee className="w-4 h-4" /> Payment History
-                            </h4>
-                            <PaymentHistory 
-                                payments={paymentHistory} 
-                                totalAmount={Number(viewTransaction.amount)}
-                                readOnly={true}
-                            />
-                        </div>
                     </div>
              </motion.div>
           </div>

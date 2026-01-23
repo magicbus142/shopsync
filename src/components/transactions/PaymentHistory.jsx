@@ -26,36 +26,35 @@ export default function PaymentHistory({ payments = [], totalAmount, onAddPaymen
 
     return (
         <div className="space-y-6">
-            <h4 className="text-base font-semibold flex items-center gap-2 text-foreground">
-                <CreditCard className="w-4 h-4 text-primary" /> Payment History
-            </h4>
+            {/* Inner text header removed to avoid duplication with Modal Purple Header */}
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-3 gap-4">
-                <div className="bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-xl border border-border">
-                    <p className="text-xs text-muted-foreground font-medium mb-1">Total Amount</p>
-                    <p className="text-lg font-bold">₹{Number(totalAmount).toLocaleString()}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+                <div className="bg-primary/5 p-4 rounded-xl border-l-4 border-primary">
+                    <p className="text-[10px] font-bold text-primary uppercase mb-1">Total Amount</p>
+                    <p className="text-xl font-bold text-foreground">₹{Number(totalAmount).toLocaleString()}</p>
                 </div>
-                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-800/30">
-                    <p className="text-xs text-green-600 dark:text-green-400 font-medium mb-1">Total Paid</p>
-                    <p className="text-lg font-bold text-green-700 dark:text-green-400">₹{totalPaid.toLocaleString()}</p>
+                <div className="bg-emerald-100 dark:bg-emerald-900/20 p-4 rounded-xl border-l-4 border-emerald-500">
+                    <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase mb-1">Total Paid</p>
+                    <p className="text-xl font-bold text-foreground">₹{totalPaid.toLocaleString()}</p>
                 </div>
-                <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-100 dark:border-red-800/30">
-                    <p className="text-xs text-red-600 dark:text-red-400 font-medium mb-1">Balance Due</p>
-                    <p className="text-lg font-bold text-red-700 dark:text-red-400">₹{balance.toLocaleString()}</p>
+                <div className="bg-rose-100 dark:bg-rose-900/20 p-4 rounded-xl border-l-4 border-rose-500">
+                    <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase mb-1">Balance Due</p>
+                    <p className="text-xl font-bold text-foreground">₹{balance.toLocaleString()}</p>
                 </div>
             </div>
 
             {/* Payment List */}
-            <div className="space-y-3">
-                <div className="flex justify-between items-center text-xs font-medium text-muted-foreground px-2">
+            <div className="space-y-3 pt-2">
+                <div className="flex justify-between items-center text-xs font-bold text-muted-foreground uppercase tracking-wider px-2">
                     <span>Date & Method</span>
                     <span>Amount</span>
                 </div>
                 
                 {payments.length === 0 && (
-                     <div className="text-sm text-muted-foreground text-center py-6 bg-muted/20 rounded-xl border border-dashed border-border">
-                        No payments recorded yet.
+                     <div className="text-sm text-muted-foreground text-center py-6 bg-muted/20 rounded-xl border border-dashed border-border flex flex-col items-center justify-center gap-2">
+                        <CreditCard className="w-6 h-6 opacity-20" />
+                        <span>No payments recorded yet.</span>
                      </div>
                 )}
                 

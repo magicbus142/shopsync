@@ -102,7 +102,7 @@ export default function InvoiceGenerator() {
   const [headerAlign, setHeaderAlign] = useState('left')
   const [templateType, setTemplateType] = useState('modern')
   const [brandColor, setBrandColor] = useState('#4F46E5') // [NEW] Default Indigo
-  const [languageMode, setLanguageMode] = useState('both') // 'both', 'en', 'te', 'separate'
+  const [languageMode, setLanguageMode] = useState('en') // 'both', 'en', 'te', 'separate'
   const [paymentDetails, setPaymentDetails] = useState({
       show: false,
       phonePe: '',
@@ -660,8 +660,8 @@ export default function InvoiceGenerator() {
                                 </label>
                                 <div className="grid grid-cols-2 gap-2">
                                     {[
-                                        { id: 'both', label: 'Bilingual (Bi)' },
                                         { id: 'en', label: 'English Only' },
+                                        { id: 'both', label: 'Bilingual (Bi)' },
                                         { id: 'te', label: 'Telugu Only' },
                                         { id: 'separate', label: 'Separate Pages' }
                                     ].map((lang) => (

@@ -8,13 +8,19 @@ import {
   TrendingUp,
   ShieldAlert,
   Search,
-  Database
+  Database,
+  MoreVertical
 } from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import { format, formatDistanceToNow } from 'date-fns'
+import { AdminCharts } from './AdminCharts'
+import { AdminShopDetails } from './AdminShopDetails'
+
+// ... existing imports
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState([])
+  const [selectedShop, setSelectedShop] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -22,6 +28,8 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchPlatformStats()
   }, [])
+  
+// ... (keep existing functions)
 
   const fetchPlatformStats = async () => {
     try {
@@ -49,9 +57,6 @@ export default function AdminDashboard() {
         setStats(prev => prev.map(org => 
            org.org_id === orgId ? { ...org, plan_key: newPlan } : org
         ))
-        
-        // Optional: Show toast or simple alert
-        // alert(`Plan updated to ${newPlan}`) 
      } catch (err) {
         console.error('Update Error:', err)
         alert('Failed to update plan: ' + err.message)
@@ -172,6 +177,9 @@ export default function AdminDashboard() {
             </div>
         </div>
 
+        {/* Visual Analytics */}
+        <AdminCharts stats={stats} />
+
         {/* Table */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
            <div className="p-6 border-b border-border">
@@ -191,6 +199,7 @@ export default function AdminDashboard() {
                    <th className="p-4 font-semibold text-muted-foreground text-center">Data Size</th>
                    <th className="p-4 font-semibold text-muted-foreground">Last Active</th>
                    <th className="p-4 font-semibold text-muted-foreground">Joined At</th>
+                   <th className="p-4 font-semibold text-muted-foreground text-right">Actions</th>
                  </tr>
                </thead>
                <tbody className="divide-y divide-border">
@@ -249,12 +258,20 @@ export default function AdminDashboard() {
                      <td className="p-4 text-muted-foreground text-xs">
                         {format(new Date(org.created_at), 'dd MMM yyyy')}
                      </td>
+                     <td className="p-4 text-right">
+                        <button 
+                            onClick={() => setSelectedShop(org)}
+                            className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground"
+                        >
+                           <MoreVertical className="w-4 h-4" />
+                        </button>
+                     </td>
                    </tr>
                  ))}
                  
                  {filteredStats.length === 0 && (
                     <tr>
-                       <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                       <td colSpan={8} className="p-8 text-center text-muted-foreground">
                           No shops found matching your search.
                        </td>
                     </tr>
@@ -263,8 +280,15 @@ export default function AdminDashboard() {
              </table>
            </div>
         </div>
-
       </div>
+      
+      {/* Shop Details Drawer */}
+      <AdminShopDetails 
+        shop={selectedShop} 
+        isOpen={!!selectedShop} 
+        onClose={() => setSelectedShop(null)} 
+        onUpdatePlan={handleUpdatePlan}
+      />
     </DashboardLayout>
   )
 }

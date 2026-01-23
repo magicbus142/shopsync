@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, X, Phone, Search, IndianRupee, FileText, Download, Pencil, Trash2, Eye } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useOrganization } from '../../context/OrganizationContext'
-import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns'
+import { format, isWithinInterval, startOfDay, endOfDay, parseISO, startOfMonth, endOfMonth } from 'date-fns'
 import * as XLSX from 'xlsx'
 import DateRangePicker from '../../components/ui/DateRangePicker'
 import ConfirmationModal from '../../components/ui/ConfirmationModal'
@@ -11,6 +11,7 @@ import Pagination from '../../components/ui/Pagination'
 import { useToast } from '../../context/ToastContext'
 import ImageUploader from '../../components/common/ImageUploader'
 import AuditHistory from '../../components/common/AuditHistory'
+import AttendanceCalendar from '../../components/common/AttendanceCalendar'
 
 export default function Workers() {
   const { currentOrg } = useOrganization()
@@ -19,10 +20,12 @@ export default function Workers() {
   const [workers, setWorkers] = useState([])
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
+  const [attendanceSummary, setAttendanceSummary] = useState({}) // worker_id -> count
   
   const [showModal, setShowModal] = useState(false) // Add Worker Modal
   const [showPayModal, setShowPayModal] = useState(false) // Pay Worker Modal
   const [showHistoryModal, setShowHistoryModal] = useState(false) // History Modal
+  const [historyTab, setHistoryTab] = useState('attendance') // 'history' | 'attendance'
   
   const [selectedWorker, setSelectedWorker] = useState(null)
   const [editingId, setEditingId] = useState(null)
@@ -57,6 +60,26 @@ export default function Workers() {
     setLoading(true)
     const { data: workersData } = await supabase.from('workers').select('*').eq('organization_id', currentOrg.id).order('created_at', { ascending: false })
     const { data: transData } = await supabase.from('transactions').select('*').eq('organization_id', currentOrg.id).not('worker_id', 'is', null).order('created_at', { ascending: false })
+    
+    // Fetch Attendance Summary for current month
+    const start = startOfMonth(new Date()).toISOString()
+    const end = endOfMonth(new Date()).toISOString()
+    const { data: attData } = await supabase
+        .from('worker_attendance')
+        .select('worker_id, status')
+        .eq('organization_id', currentOrg.id)
+        .gte('date', start)
+        .lte('date', end)
+        .eq('status', 'present')
+
+    const summary = {}
+    if (attData) {
+        attData.forEach(r => {
+            summary[r.worker_id] = (summary[r.worker_id] || 0) + 1
+        })
+    }
+    setAttendanceSummary(summary)
+
     setWorkers(workersData || [])
     setTransactions(transData || [])
     setLoading(false)
@@ -293,6 +316,7 @@ export default function Workers() {
               <tr>
                 <th className="px-6 py-4">Name</th>
                 <th className="px-6 py-4">Role</th>
+                <th className="px-6 py-4 text-center">Days Worked</th>
                 <th className="px-6 py-4">Contact</th>
                 <th className="px-6 py-4 text-right">Base Salary</th>
                 <th className="px-6 py-4 text-right">Total Paid</th>
@@ -320,6 +344,11 @@ export default function Workers() {
                          {worker.name}
                        </td>
                        <td className="px-6 py-4 text-muted-foreground">{worker.role || '-'}</td>
+                       <td className="px-6 py-4 text-center font-medium">
+                           <span className="bg-primary/10 text-primary px-2 py-1 rounded-md text-xs">
+                               {attendanceSummary[worker.id] || 0} Days
+                           </span>
+                       </td>
                        <td className="px-6 py-4">{worker.phone ? <div className="flex items-center gap-1 text-muted-foreground"><Phone className="w-3 h-3" /> {worker.phone}</div> : '-'}</td>
                        <td className="px-6 py-4 text-right">{worker.salary ? `₹${Number(worker.salary).toLocaleString()}` : '-'}</td>
                        <td className="px-6 py-4 text-right"><span className="font-bold text-green-600">₹{stats.totalPaid.toLocaleString()}</span></td>
@@ -368,17 +397,22 @@ export default function Workers() {
             const stats = getWorkerStats(worker.id)
             return (
                 <div key={worker.id} className="bg-card border border-border rounded-xl p-4 shadow-sm space-y-4">
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold overflow-hidden">
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold overflow-hidden flex-shrink-0">
                                 {worker.image_url ? <img src={worker.image_url} alt={worker.name} className="w-full h-full object-cover" /> : worker.name.charAt(0).toUpperCase()}
                             </div>
-                            <div>
-                                <h3 className="font-semibold">{worker.name}</h3>
-                                <p className="text-sm text-muted-foreground">{worker.role || 'No Role'}</p>
+                            <div className="min-w-0 flex-1">
+                                <h3 className="font-semibold truncate pr-2" title={worker.name}>{worker.name}</h3>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-sm text-muted-foreground truncate max-w-[100px]">{worker.role || 'No Role'}</p>
+                                    <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-[10px] font-medium whitespace-nowrap">
+                                       {attendanceSummary[worker.id] || 0} Days Worked
+                                    </span>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 flex-shrink-0">
                             <button onClick={() => handleEdit(worker)} className="p-2 text-muted-foreground hover:bg-muted rounded-full"><Pencil className="w-5 h-5" /></button>
                             <button onClick={() => openHistoryModal(worker)} className="p-2 text-muted-foreground hover:bg-muted rounded-full"><Eye className="w-5 h-5" /></button>
                             <button onClick={() => handleDelete(worker.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"><Trash2 className="w-5 h-5" /></button>
@@ -493,47 +527,72 @@ export default function Workers() {
         {showHistoryModal && selectedWorker && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-card w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
-              <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30">
-                <div>
-                  <h3 className="text-xl font-bold">{selectedWorker.name}</h3>
+              <div className="p-6 border-b border-border flex justify-between items-start gap-4 bg-muted/30">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xl font-bold break-words pr-2">{selectedWorker.name}</h3>
                   <div className="flex gap-2 text-xs mt-1">
-                      <span className="bg-muted px-2 py-0.5 rounded text-muted-foreground">Log & Audit</span>
+                      <span className="bg-muted px-2 py-0.5 rounded text-muted-foreground whitespace-nowrap">Log & Audit</span>
                   </div>
                 </div>
-                <button onClick={() => setShowHistoryModal(false)} className="p-1 hover:bg-black/10 rounded-full"><X className="w-5 h-5" /></button>
+                <button onClick={() => setShowHistoryModal(false)} className="p-1 hover:bg-black/10 rounded-full flex-shrink-0"><X className="w-5 h-5" /></button>
               </div>
               
               <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                   {/* 1. Transaction History (Payments) */}
-                   <div>
-                       <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-muted-foreground uppercase tracking-wider text-xs">
-                           <IndianRupee className="w-3 h-3" /> Recent Payments
-                       </h4>
-                       {transactions.filter(t => t.worker_id === selectedWorker.id).length === 0 ? (
-                           <div className="text-sm text-muted-foreground italic pl-2">No payments recorded.</div>
-                       ) : (
-                           <div className="space-y-2">
-                               {transactions
-                                   .filter(t => t.worker_id === selectedWorker.id)
-                                   .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                                   .slice(0, 5) // Last 5 payments
-                                   .map((t) => (
-                                   <div key={t.id} className="flex justify-between items-center text-sm bg-muted/20 p-2 rounded">
-                                       <span className="text-muted-foreground">{format(new Date(t.date), 'dd MMM yyyy')}</span>
-                                       <span className="font-medium">₹{Number(t.amount).toLocaleString()}</span>
-                                   </div>
-                               ))}
-                           </div>
-                       )}
+                   <div className="flex space-x-1 bg-muted/20 p-1 rounded-lg mb-4">
+                       <button 
+                           onClick={() => setHistoryTab('attendance')}
+                           className={`flex-1 py-1.5 px-3 text-sm font-medium rounded-md transition-all ${historyTab === 'attendance' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'}`}
+                       >
+                           Attendance
+                       </button>
+                       <button 
+                           onClick={() => setHistoryTab('history')}
+                           className={`flex-1 py-1.5 px-3 text-sm font-medium rounded-md transition-all ${historyTab === 'history' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'}`}
+                       >
+                           History & Logs
+                       </button>
                    </div>
 
-                   {/* 2. Audit History */}
-                   <div>
-                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-muted-foreground uppercase tracking-wider text-xs">
-                           <FileText className="w-3 h-3" /> Profile Changes
-                       </h4>
-                       <AuditHistory tableName="workers" recordId={selectedWorker.id} />
-                   </div>
+                   {historyTab === 'attendance' ? (
+                       <AttendanceCalendar 
+                            workerId={selectedWorker.id} 
+                            organizationId={currentOrg.id} 
+                            onAttendanceChange={fetchData} 
+                        />
+                   ) : (
+                       <>
+                           {/* 1. Transaction History (Payments) */}
+                           <div>
+                               <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-muted-foreground uppercase tracking-wider text-xs">
+                                   <IndianRupee className="w-3 h-3" /> Recent Payments
+                               </h4>
+                               {transactions.filter(t => t.worker_id === selectedWorker.id).length === 0 ? (
+                                   <div className="text-sm text-muted-foreground italic pl-2">No payments recorded.</div>
+                               ) : (
+                                   <div className="space-y-2">
+                                       {transactions
+                                           .filter(t => t.worker_id === selectedWorker.id)
+                                           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                                           .slice(0, 5) // Last 5 payments
+                                           .map((t) => (
+                                           <div key={t.id} className="flex justify-between items-center text-sm bg-muted/20 p-2 rounded">
+                                               <span className="text-muted-foreground">{format(new Date(t.date), 'dd MMM yyyy')}</span>
+                                               <span className="font-medium">₹{Number(t.amount).toLocaleString()}</span>
+                                           </div>
+                                       ))}
+                                   </div>
+                               )}
+                           </div>
+        
+                           {/* 2. Audit History */}
+                           <div>
+                                <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-muted-foreground uppercase tracking-wider text-xs">
+                                   <FileText className="w-3 h-3" /> Profile Changes
+                               </h4>
+                               <AuditHistory tableName="workers" recordId={selectedWorker.id} />
+                           </div>
+                       </>
+                   )}
               </div>
             </motion.div>
           </div>

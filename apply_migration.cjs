@@ -2,7 +2,7 @@ const { Client } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
-const MIGRATION_FILE = path.join(__dirname, 'supabase', 'migrations', '20240110_add_invoice_columns.sql');
+const MIGRATION_FILE = path.join(__dirname, 'supabase', 'migrations', '20260123_create_worker_attendance.sql');
 
 async function applyMigration() {
     console.log("Applying migration from:", MIGRATION_FILE);

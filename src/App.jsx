@@ -19,6 +19,7 @@ import Reports from './pages/dashboard/Reports'
 import Settings from './pages/dashboard/Settings'
 import InvoiceGenerator from './pages/dashboard/InvoiceGenerator'
 import MarketingHub from './pages/dashboard/MarketingHub'
+import SubscriptionPage from './pages/dashboard/SubscriptionPage'
 
 // Layout Component (Only for Dashboard/Auth pages if needed, Home has its own layout)
 const Layout = ({ children }) => {
@@ -58,6 +59,7 @@ function App() {
             <Route path="invoice" element={<InvoiceGenerator />} />
             <Route path="marketing" element={<MarketingHub />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="subscription" element={<SubscriptionPage />} />
           </Route>
 
           {/* Admin Route */}
