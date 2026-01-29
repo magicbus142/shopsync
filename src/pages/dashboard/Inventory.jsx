@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Plus, Package, Download, Pencil, Trash2, Eye, X, Activity, Tag, AlertTriangle, TrendingUp } from 'lucide-react'
+import { Search, Plus, Package, Download, Pencil, Trash2, Eye, X, Activity, Tag, Activity as TrendingUp, LayoutGrid, List } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useOrganization } from '../../context/OrganizationContext'
 import * as XLSX from 'xlsx'
@@ -30,6 +30,7 @@ export default function Inventory() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [recordPayment, setRecordPayment] = useState(false)
+  const [viewType, setViewType] = useState('grid') // Default to grid view
   
   // View/History State
   const [viewProduct, setViewProduct] = useState(null)
@@ -45,8 +46,6 @@ export default function Inventory() {
 
   const fetchSupplierTransactions = async () => {
     try {
-        // Fetch transactions where party_name matches supplier OR description contains product name
-        // We limit to recent 5 for brevity
         const { data, error } = await supabase
             .from('transactions')
             .select('*')
@@ -64,7 +63,7 @@ export default function Inventory() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 10
+  const itemsPerPage = 12 // Updated as per previous requirement
 
   useEffect(() => {
     setCurrentPage(1)
@@ -130,8 +129,8 @@ export default function Inventory() {
       image: product.image_url || '',
       price: product.price || '',
       buyingPrice: product.buying_price || '', 
-      dealerName: product.supplier_name || '', // Load saved supplier
-      amountPaid: '' // Do not load previous payment info to avoid confusion
+      dealerName: product.supplier_name || '',
+      amountPaid: ''
     })
     setRecordPayment(false)
     setEditingId(product.id)
@@ -148,7 +147,6 @@ export default function Inventory() {
   const handleAddProduct = async (e) => {
     e.preventDefault()
     
-    // Get User ID (Supabase Auth)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user || !currentOrg) { 
         toast.error("Authentication Error: Please login again.")
@@ -164,7 +162,7 @@ export default function Inventory() {
        image_url: newProduct.image || null,
        price: parseFloat(newProduct.price) || 0,
        buying_price: parseFloat(newProduct.buyingPrice) || 0,
-       supplier_name: recordPayment ? newProduct.dealerName : (newProduct.dealerName || null) 
+       supplier_name: newProduct.dealerName || null 
     }
     
     if (!editingId) {
@@ -177,7 +175,6 @@ export default function Inventory() {
             const cost = parseFloat(newProduct.buyingPrice) || 0
 
             if (editingId) {
-                // UPDATE
                 const { error } = await supabase
                     .from('products')
                     .update(item)
@@ -186,20 +183,14 @@ export default function Inventory() {
                 if (error) throw error;
                 toast.success("Product updated successfully")
             } else {
-                // INSERT
                 const { data: prodData, error } = await supabase.from('products').insert([item]).select()
-        
                 if (error) throw error;
-                
                 toast.success("Product added successfully")
                 
-                // Add Expense Transaction Logic
                 const totalAmount = parseInt(newProduct.stock) * cost
-                        
                 if (recordPayment && totalAmount > 0) {
                     let payStatus = 'Paid'
                     let amtPaidNow = parseFloat(newProduct.amountPaid) || 0
-
                     if (amtPaidNow === 0) payStatus = 'Pending'
                     else if (amtPaidNow < totalAmount) payStatus = 'Partial'
                     else payStatus = 'Paid'
@@ -209,12 +200,12 @@ export default function Inventory() {
                         user_id: user.id,
                         type: 'expense',
                         amount: totalAmount,
-                        amount_paid: amtPaidNow, // Initial payment
+                        amount_paid: amtPaidNow,
                         category: 'Inventory Purchase',
                         description: `Stock Purchase: ${newProduct.stock} x ${newProduct.name}`,
                         date: new Date().toISOString().split('T')[0],
                         payment_status: payStatus,
-                        payment_method: 'Cash', // Default to Cash for now
+                        payment_method: 'Cash',
                         party_name: newProduct.dealerName
                     }]).select()
 
@@ -222,7 +213,6 @@ export default function Inventory() {
                         console.error('Error adding expense:', txError)
                         toast.error("Product added, but failed to record expense info.")
                     } else if (amtPaidNow > 0 && txData?.[0]?.id) {
-                         // Create Payment Record if paid > 0
                          const { error: payError } = await supabase.from('transaction_payments').insert([{
                              transaction_id: txData[0].id,
                              amount: amtPaidNow,
@@ -233,7 +223,6 @@ export default function Inventory() {
                     }
                 }
             }
-
             closeForm()
             fetchProducts() 
         } catch (error) {
@@ -266,19 +255,10 @@ export default function Inventory() {
       p.name.toLowerCase().includes(search.toLowerCase()) || 
       (p.sku && p.sku.includes(search))
     )
-
     if (filter === 'Low Stock') return filtered.filter(p => p.stock > 0 && p.stock <= p.min_stock_level)
     if (filter === 'In Stock') return filtered.filter(p => p.stock > p.min_stock_level)
     if (filter === 'Out of Stock') return filtered.filter(p => p.stock === 0)
-    
     return filtered
-  }
-
-  const getStockStatus = (product) => {
-    const min = product.min_stock_level || 10
-    if (product.stock === 0) return { color: 'bg-red-500', bg: 'bg-red-100 dark:bg-red-900/30', width: '0%' }
-    if (product.stock <= min) return { color: 'bg-yellow-500', bg: 'bg-yellow-100 dark:bg-yellow-900/30', width: '40%' }
-    return { color: 'bg-green-500', bg: 'bg-green-100 dark:bg-green-900/30', width: '80%' }
   }
 
   const filteredProducts = getFilteredProducts()
@@ -293,8 +273,22 @@ export default function Inventory() {
       <div className="flex justify-between items-center mb-6 pr-14 md:pr-0">
          <h2 className="text-2xl font-bold tracking-tight">Inventory</h2>
          <div className="flex gap-2">
-
-
+            <div className="hidden md:flex bg-card border border-border rounded-lg p-1 mr-2">
+              <button 
+                onClick={() => setViewType('grid')}
+                className={`p-1.5 rounded ${viewType === 'grid' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}
+                title="Grid View"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => setViewType('list')}
+                className={`p-1.5 rounded ${viewType === 'list' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}
+                title="List View"
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
             <button 
               onClick={handleExport}
               className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg font-medium flex items-center gap-2 hover:bg-secondary/80 transition-colors shadow-sm"
@@ -352,10 +346,9 @@ export default function Inventory() {
               onClick={(e) => e.stopPropagation()}
               className="bg-card w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto relative"
             >
-             <div className="bg-card border-none shadow-none mb-0 overflow-hidden relative">
-                {/* Background Pattern */}
+              {/* Modal Content */}
+              <div className="p-0 relative">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-
                 <div className="p-6">
                     <div className="flex justify-between items-start mb-6">
                         <div className="flex items-center gap-2">
@@ -370,151 +363,74 @@ export default function Inventory() {
                     </div>
 
                     <div className="flex flex-col md:flex-row gap-8">
-                        {/* Left: Image & Key Info */}
+                        {/* Left: Image Box */}
                         <div className="w-full md:w-auto flex flex-col gap-4">
-                            <div className="w-full md:w-64 aspect-square rounded-2xl bg-muted border border-border overflow-hidden relative shadow-sm group mx-auto">
+                            <div className="w-full md:w-52 aspect-square rounded-2xl bg-muted border border-border overflow-hidden relative shadow-inner flex items-center justify-center">
                                 {viewProduct.image_url ? (
-                                    <img src={viewProduct.image_url} alt={viewProduct.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                    <img src={viewProduct.image_url} alt={viewProduct.name} className="w-full h-full object-contain p-4" />
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                                        <Package className="w-12 h-12 opacity-20 mb-2" />
-                                        <span className="text-xs">No Image</span>
-                                    </div>
+                                    <Package className="w-16 h-16 text-muted-foreground/20" />
                                 )}
-                                <div className="absolute top-3 left-3">
-                                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-sm uppercase tracking-wide ${
-                                        viewProduct.stock > (viewProduct.min_stock_level || 10) 
-                                        ? 'bg-white/90 text-green-700 dark:bg-black/80 dark:text-green-400'
-                                        : 'bg-white/90 text-red-700 dark:bg-black/80 dark:text-red-400'
-                                     }`}>
-                                        {viewProduct.stock > (viewProduct.min_stock_level || 10) ? 'In Stock' : 'Low Stock'}
-                                     </span>
-                                </div>
                             </div>
-
-                            <div className="bg-muted/30 p-3 rounded-xl border border-border/50 md:w-64">
-                                <h2 className="text-lg font-bold mb-0.5 truncate" title={viewProduct.name}>{viewProduct.name}</h2>
-                                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                                    <Tag className="w-3 h-3" /> SKU: {viewProduct.sku || 'N/A'}
-                                </p>
+                            <div className="bg-muted/30 p-3 rounded-xl border border-border/50">
+                                <h4 className="text-base font-bold mb-0.5 truncate">{viewProduct.name}</h4>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">SKU: {viewProduct.sku || 'N/A'}</p>
                             </div>
                         </div>
 
-                        {/* Right: Metrics Grid */}
-                        <div className="flex-1 space-y-6 min-w-0">
-                             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                                <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/30">
-                                     <p className="text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-wider mb-1">Selling Price</p>
-                                     <p className="text-2xl font-bold text-foreground">₹{viewProduct.price}</p>
+                        {/* Right: Info Panels */}
+                        <div className="flex-1 space-y-4">
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                                <div className="p-3.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-900/5 border border-indigo-100 dark:border-indigo-900/10">
+                                    <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-1">Selling Price</p>
+                                    <p className="text-xl font-bold">₹{viewProduct.price}</p>
                                 </div>
-                                <div className="p-4 rounded-xl bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30">
-                                     <p className="text-xs font-bold text-orange-700 dark:text-orange-400 uppercase tracking-wider mb-1">Buying Price</p>
-                                     <p className="text-2xl font-bold text-foreground">₹{viewProduct.buying_price || 0}</p>
+                                <div className="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/5 border border-emerald-100 dark:border-emerald-900/10">
+                                    <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1">Buying Price</p>
+                                    <p className="text-xl font-bold">₹{viewProduct.buying_price || 0}</p>
                                 </div>
-                                <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30">
-                                     <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-1">Inventory Value</p>
-                                     <p className="text-2xl font-bold text-foreground">
-                                         ₹{(viewProduct.stock * (viewProduct.buying_price || 0)).toLocaleString()}
-                                     </p>
+                                <div className="p-3.5 rounded-xl bg-orange-50/50 dark:bg-orange-900/5 border border-orange-100 dark:border-orange-900/10">
+                                    <p className="text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider mb-1">Value</p>
+                                    <p className="text-xl font-bold">₹{(viewProduct.stock * (viewProduct.buying_price || 0)).toLocaleString()}</p>
                                 </div>
-                             </div>
+                            </div>
 
-                             <div className="grid grid-cols-2 gap-4">
-                                 <div className="p-4 rounded-xl border border-border bg-card shadow-sm">
-                                      <div className="flex items-center gap-2 mb-2">
-                                         <Package className="w-4 h-4 text-primary" />
-                                         <span className="text-sm font-medium">Stock Status</span>
-                                      </div>
-                                      <div className="flex items-end gap-2">
-                                          <span className="text-3xl font-bold">
-                                              {viewProduct.stock} 
-                                              <span className="text-lg text-muted-foreground font-normal"> / {Math.max(viewProduct.stock, viewProduct.initial_stock || 0)}</span>
-                                          </span>
-                                          <span className="text-sm text-muted-foreground mb-1">units</span>
-                                      </div>
-                                      <div className="flex justify-between text-[10px] text-muted-foreground mt-1 mb-1">
-                                          <span>Current</span>
-                                          <span>Total Ordered</span>
-                                      </div>
-                                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                          <div 
-                                            className="h-full bg-primary transition-all duration-500" 
-                                            style={{ 
-                                                width: `${Math.min(100, (viewProduct.stock / Math.max(viewProduct.stock, viewProduct.initial_stock || 1)) * 100)}%` 
-                                            }}
-                                          ></div>
-                                      </div>
-                                 </div>
+                            <div className="p-4 rounded-xl border border-border bg-card/50">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h5 className="text-xs font-bold flex items-center gap-2 text-muted-foreground">
+                                        <Package className="w-3.5 h-3.5 text-primary" /> CURRENT STOCK
+                                    </h5>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                        viewProduct.stock > (viewProduct.min_stock_level || 10) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                    }`}>
+                                        {viewProduct.stock > (viewProduct.min_stock_level || 10) ? 'HEALTHY' : 'LOW STOCK'}
+                                    </span>
+                                </div>
+                                <div className="flex items-baseline gap-2 mb-2 pt-1">
+                                    <span className="text-3xl font-bold">{viewProduct.stock}</span>
+                                    <span className="text-sm text-muted-foreground font-bold">/ {viewProduct.initial_stock || viewProduct.stock} Units</span>
+                                </div>
+                                <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1 opacity-60">
+                                    Inventory Capacity Status
+                                </div>
+                            </div>
 
-                                 <div className="p-4 rounded-xl border border-border bg-card shadow-sm">
-                                      <div className="flex items-center gap-2 mb-2">
-                                         <TrendingUp className="w-4 h-4 text-green-500" />
-                                         <span className="text-sm font-medium">Profit Margin</span>
-                                      </div>
-                                      <div className="flex items-end gap-2">
-                                          <span className="text-3xl font-bold text-green-600">
-                                            {viewProduct.price > 0 && viewProduct.buying_price > 0 
-                                                ? Math.round(((viewProduct.price - viewProduct.buying_price) / viewProduct.price) * 100) 
-                                                : 0}%
-                                          </span>
-                                          <span className="text-sm text-muted-foreground mb-1">per unit</span>
-                                      </div>
-                                      <p className="text-xs text-muted-foreground mt-2">
-                                          Potential Profit: ₹{(viewProduct.price - (viewProduct.buying_price || 0)).toLocaleString()} / unit
-                                      </p>
-                                 </div>
-                             </div>
-
-                             {viewProduct.supplier_name && (
-                                 <div className="space-y-4">
-                                     {/* Premium Supplier Card */}
-                                     <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-xl p-4 relative overflow-hidden group">
-                                         <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                                             <Package className="w-24 h-24 text-indigo-600" />
-                                         </div>
-                                         <div className="relative z-10 flex items-center gap-4">
-                                             <div className="w-12 h-12 rounded-full bg-white dark:bg-indigo-950 flex items-center justify-center text-lg font-bold text-indigo-700 dark:text-indigo-300 shadow-sm border border-indigo-100 dark:border-indigo-800">
-                                                 {viewProduct.supplier_name.substring(0, 2).toUpperCase()}
-                                             </div>
-                                             <div>
-                                                 <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-0.5">Verified Supplier</p>
-                                                 <h4 className="text-lg font-bold text-foreground">{viewProduct.supplier_name}</h4>
-                                             </div>
-                                         </div>
-                                     </div>
-
-                                     {/* Recent Payments List */}
-                                     {supplierTransactions.length > 0 && (
-                                         <div className="bg-card border border-border rounded-xl p-4">
-                                             <h5 className="text-sm font-bold mb-3 flex items-center gap-2">
-                                                 <Activity className="w-4 h-4 text-green-500" /> Recent Payments to Dealer
-                                             </h5>
-                                             <div className="space-y-2">
-                                                 {supplierTransactions.map((tx, idx) => (
-                                                     <div key={tx.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 hover:bg-muted transition-colors text-sm">
-                                                         <div className="flex flex-col">
-                                                             <span className="font-medium text-foreground">
-                                                                 {tx.description && tx.description.includes(viewProduct.name) ? 'Stock Purchase' : 'Payment'}
-                                                             </span>
-                                                             <span className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString()}</span>
-                                                         </div>
-                                                         <div className="text-right">
-                                                             <div className="font-bold text-foreground">₹{tx.amount.toLocaleString()}</div>
-                                                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                                                                 tx.payment_status === 'Paid' ? 'bg-green-100 text-green-700' : 
-                                                                 tx.payment_status === 'Partially Paid' ? 'bg-yellow-100 text-yellow-700' : 
-                                                                 'bg-red-100 text-red-700'
-                                                             }`}>
-                                                                 {tx.payment_status}
-                                                             </span>
-                                                         </div>
-                                                     </div>
-                                                 ))}
-                                             </div>
-                                         </div>
-                                     )}
-                                 </div>
-                             )}
+                            {viewProduct.supplier_name && (
+                                <div className="p-4 rounded-xl border border-border bg-card/50">
+                                    <h5 className="text-xs font-bold mb-3 flex items-center gap-2 text-muted-foreground uppercase tracking-wider">
+                                        <Activity className="w-3.5 h-3.5 text-indigo-500" /> Supplier Info
+                                    </h5>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                                            {viewProduct.supplier_name.substring(0,2).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <p className="text-base font-bold leading-tight">{viewProduct.supplier_name}</p>
+                                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">Verified Partner</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                     
@@ -522,197 +438,212 @@ export default function Inventory() {
                         <AuditHistory tableName="products" recordId={viewProduct.id} />
                     </div>
                 </div>
-             </div>
+              </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* Content Area */}
-      
-      {/* Mobile Card View */}
-      <div className="md:hidden space-y-4">
-        <AnimatePresence mode="popLayout">
-            {currentItems.map((product) => (
-                <motion.div
-                key={product.id}
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-card border border-border rounded-xl p-4 flex gap-4 shadow-sm active:scale-[0.99] transition-all group relative overflow-hidden"
-                >
-                {/* Image Section */}
-                <div className="w-24 h-24 rounded-lg bg-muted overflow-hidden flex-shrink-0 relative border border-border">
-                    <div className="w-full h-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
-                        {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                        ) : (
-                        <Package className="text-gray-300 w-8 h-8" />
-                        )}
-                    </div>
-                </div>
-                
-                {/* Content Section */}
-                <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                    {/* Header: Name & Price */}
-                    <div className="flex justify-between items-start gap-2">
-                        <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-lg leading-tight truncate pr-2 group-hover:text-primary transition-colors" title={product.name}>
-                                {product.name}
-                            </h3>
-                            <div className="text-sm text-muted-foreground mt-0.5">SKU: {product.sku || 'N/A'}</div>
-                        </div>
-                        <span className="font-bold text-lg whitespace-nowrap flex-shrink-0">₹{product.price || 0}</span>
-                    </div>
+      {/* Main Content View */}
+      <div className="flex-1">
+          {/* MOBILE VIEW */}
+          <div className="md:hidden space-y-4">
+              <AnimatePresence mode="popLayout">
+                  {currentItems.map((product) => (
+                      <motion.div
+                          key={product.id}
+                          layout
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          className="bg-card border border-border rounded-xl p-4 flex gap-4 shadow-sm"
+                      >
+                          <div className="w-20 h-20 rounded-lg bg-muted flex-shrink-0 flex items-center justify-center">
+                              {product.image_url ? (
+                                  <img src={product.image_url} alt="" className="w-full h-full object-cover rounded-lg" />
+                              ) : (
+                                  <Package className="w-8 h-8 text-muted-foreground/20" />
+                              )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-start">
+                                  <h3 className="font-bold truncate pr-6">{product.name}</h3>
+                                  <button onClick={() => setViewProduct(product)} className="p-1 hover:bg-muted rounded-md">
+                                      <Eye className="w-4 h-4 text-muted-foreground" />
+                                  </button>
+                              </div>
+                              <p className="text-lg font-bold mt-1 text-primary">₹{product.price}</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                                      product.stock > (product.min_stock_level || 10) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                  }`}>
+                                      {product.stock} Units
+                                  </span>
+                              </div>
+                          </div>
+                      </motion.div>
+                  ))}
+              </AnimatePresence>
+          </div>
 
-                    {/* Badge & Actions */}
-                    <div className="flex items-center justify-between mt-2">
-                        <span className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium ${
-                            product.stock > (product.min_stock_level || 10) 
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                                : product.stock === 0 
-                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
-                        }`}>
-                            {product.stock > (product.min_stock_level || 10) ? 'In Stock' : product.stock === 0 ? 'Out of Stock' : 'Low Stock'}
-                        </span>
+          {/* DESKTOP VIEW */}
+          <div className="hidden md:block">
+              {viewType === 'grid' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <AnimatePresence mode="popLayout">
+                          {currentItems.map((product) => (
+                             <motion.div
+                                key={product.id}
+                                layout
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="bg-white dark:bg-card border border-border rounded-[20px] p-4 flex gap-4 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
+                             >
+                                {/* Selection/Checkbox indicator if needed, or simple status dot */}
+                                <div className={`absolute top-0 right-0 w-1.5 h-full ${product.stock > (product.min_stock_level || 10) ? 'bg-green-500' : 'bg-red-500'} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+                                
+                                {/* Left: Image Box */}
+                                <div className="w-22 h-22 rounded-[14px] bg-slate-50 dark:bg-muted/40 flex-shrink-0 flex items-center justify-center border border-border shadow-inner group-hover:border-primary/20 transition-colors overflow-hidden">
+                                    {product.image_url ? (
+                                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                    ) : (
+                                        <Package className="w-8 h-8 text-muted-foreground/30" />
+                                    )}
+                                </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex items-center gap-1">
-                            <button onClick={() => setViewProduct(product)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md" title="View History"><Eye className="w-3.5 h-3.5" /></button>
-                            <button onClick={() => handleEdit(product)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md"><Pencil className="w-3.5 h-3.5" /></button>
-                            <button onClick={() => handleDelete(product.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
-                        </div>
-                    </div>
-
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-border/50">
-                        <div>
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Current Stock</p>
-                            <p className="text-lg font-bold leading-none mt-0.5">{product.stock}</p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Buying Price</p>
-                            <p className="text-lg font-bold text-muted-foreground leading-none mt-0.5">
-                                ₹{product.buying_price || 0}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                </motion.div>
-            ))}
-        </AnimatePresence>
-        {getFilteredProducts().length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-                <Package className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                <p>No products found.</p>
-            </div>
-        )}
-      </div>
-
-      {/* Desktop Table View */}
-      <div className="hidden md:block bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                    <thead className="bg-muted/50 text-muted-foreground font-medium uppercase text-[10px] tracking-wider border-b border-border">
-                        <tr>
-                            <th className="px-4 py-3 pl-6">Product</th>
-                            <th className="px-4 py-3 text-center">Stock</th>
-                            <th className="px-4 py-3 text-right">Selling Price</th>
-                            <th className="px-4 py-3 text-right">Buying Price</th>
-                            <th className="px-4 py-3 text-right">Profit / Unit</th>
-                            <th className="px-4 py-3">Supplier</th>
-                            <th className="px-4 py-3 text-right pr-6">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/50">
-                        {currentItems.map((product) => (
-                            <tr key={product.id} className="hover:bg-muted/30 transition-colors group">
-                                <td className="px-4 py-3 pl-6">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-lg bg-muted border border-border overflow-hidden flex-shrink-0 flex items-center justify-center">
-                                            {product.image_url ? (
-                                                <img src={product.image_url} alt="" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <Package className="w-4 h-4 text-muted-foreground/50" />
-                                            )}
+                                {/* Right: Card Content */}
+                                <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                    <div>
+                                        <div className="flex justify-between items-start gap-2">
+                                            <h3 className="text-base font-bold text-indigo-600 dark:text-indigo-400 leading-tight truncate group-hover:text-primary transition-colors pr-1" title={product.name}>
+                                                {product.name}
+                                            </h3>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                                <button onClick={() => setViewProduct(product)} className="p-1 hover:bg-slate-100 dark:hover:bg-muted rounded text-slate-400 hover:text-primary transition-colors" title="View Details"><Eye className="w-3.5 h-3.5" /></button>
+                                                <button onClick={() => handleEdit(product)} className="p-1 hover:bg-slate-100 dark:hover:bg-muted rounded text-slate-400 hover:text-blue-500 transition-colors" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
+                                                <button onClick={() => handleDelete(product.id)} className="p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-slate-400 hover:text-red-500 transition-colors" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col min-w-0">
-                                            <div className="font-medium text-foreground whitespace-normal break-words max-w-[180px] sm:max-w-[300px] leading-tight">{product.name}</div>
-                                            <div className="text-[10px] text-muted-foreground font-mono truncate">{product.sku || '-'}</div>
+                                        <p className="text-[10px] text-muted-foreground mt-0.5 font-bold uppercase tracking-wider">SKU: {product.sku || 'N/A'}</p>
+                                    </div>
+
+                                    <div className="mt-2 text-right">
+                                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold shadow-sm uppercase tracking-wide border ${
+                                            product.stock > (product.min_stock_level || 10) 
+                                            ? 'bg-green-50 text-green-700 border-green-200' 
+                                            : 'bg-red-50 text-red-700 border-red-200'
+                                        }`}>
+                                            {product.stock > (product.min_stock_level || 10) ? 'In Stock' : 'Low Stock'}
+                                        </span>
+                                    </div>
+
+                                    <div className="mt-2">
+                                        <div className="flex justify-between items-end">
+                                            <div className="flex flex-col">
+                                                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold mb-0.5">Price</span>
+                                                <span className="text-xl font-extrabold text-slate-900 dark:text-white leading-none">₹{product.price}</span>
+                                            </div>
+                                            <div className="text-right flex flex-col items-end">
+                                                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">{product.stock} / {product.initial_stock || product.stock}</span>
+                                                <span className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-tighter">Units</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                        product.stock > (product.min_stock_level || 10) 
-                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                                            : product.stock === 0 
-                                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                                            : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
-                                    }`}>
-                                        {product.stock}
-                                    </span>
-                                </td>
-                                <td className="px-4 py-3 text-right font-medium">
-                                    ₹{product.price || 0}
-                                </td>
-                                <td className="px-4 py-3 text-right text-muted-foreground">
-                                    ₹{product.buying_price || 0}
-                                </td>
-                                <td className="px-4 py-3 text-right font-medium text-green-600 dark:text-green-400">
-                                    ₹{(product.price || 0) - (product.buying_price || 0)}
-                                </td>
-                                <td className="px-4 py-3 text-muted-foreground max-w-[150px] truncate">
-                                    {product.supplier_name || '-'}
-                                </td>
-                                <td className="px-4 py-3 text-right pr-6">
-                                    <div className="flex items-center justify-end gap-1">
-                                        <button onClick={() => setViewProduct(product)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md" title="View Details">
-                                            <Eye className="w-4 h-4" />
-                                        </button>
-                                        <button onClick={() => handleEdit(product)} className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md" title="Edit">
-                                            <Pencil className="w-4 h-4" />
-                                        </button>
-                                        <button onClick={() => handleDelete(product.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md" title="Delete">
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                        {currentItems.length === 0 && (
-                            <tr>
-                                <td colSpan="7" className="px-4 py-12 text-center text-muted-foreground">
-                                    <Package className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                                    No products found matching your search.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                                </div>
+                             </motion.div>
+                          ))}
+                      </AnimatePresence>
+                  </div>
+              ) : (
+                  <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+                      <div className="overflow-x-auto">
+                          <table className="w-full text-sm text-left">
+                              <thead className="bg-muted/50 text-muted-foreground font-medium uppercase text-[10px] tracking-wider border-b border-border">
+                                  <tr>
+                                      <th className="px-4 py-3 pl-6">Product</th>
+                                      <th className="px-4 py-3 text-center">Stock</th>
+                                      <th className="px-4 py-3 text-right">Selling Price</th>
+                                      <th className="px-4 py-3 text-right">Buying Price</th>
+                                      <th className="px-4 py-3 text-right">Profit / Unit</th>
+                                      <th className="px-4 py-3">Supplier</th>
+                                      <th className="px-4 py-3 text-right pr-6">Actions</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border/50">
+                                  {currentItems.map((product) => (
+                                      <tr key={product.id} className="hover:bg-muted/30 transition-colors group">
+                                          <td className="px-4 py-3 pl-6">
+                                              <div className="flex items-center gap-3">
+                                                  <div className="w-10 h-10 rounded-lg bg-muted border border-border overflow-hidden flex-shrink-0 flex items-center justify-center">
+                                                      {product.image_url ? (
+                                                          <img src={product.image_url} alt="" className="w-full h-full object-cover" />
+                                                      ) : (
+                                                          <Package className="w-4 h-4 text-muted-foreground/50" />
+                                                      )}
+                                                  </div>
+                                                  <div className="flex flex-col min-w-0">
+                                                      <div className="font-medium text-foreground leading-tight truncate max-w-[200px]">{product.name}</div>
+                                                      <div className="text-[10px] text-muted-foreground font-mono truncate">{product.sku || '-'}</div>
+                                                  </div>
+                                              </div>
+                                          </td>
+                                          <td className="px-4 py-3 text-center">
+                                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                                                  product.stock > (product.min_stock_level || 10) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                              }`}>
+                                                  {product.stock}
+                                              </span>
+                                          </td>
+                                          <td className="px-4 py-3 text-right font-medium text-foreground">₹{product.price || 0}</td>
+                                          <td className="px-4 py-3 text-right text-muted-foreground font-medium">₹{product.buying_price || 0}</td>
+                                          <td className="px-4 py-3 text-right font-bold text-green-600 dark:text-green-400">₹{(product.price || 0) - (product.buying_price || 0)}</td>
+                                          <td className="px-4 py-3 text-muted-foreground whitespace-nowrap truncate max-w-[120px]">{product.supplier_name || '-'}</td>
+                                          <td className="px-4 py-3 text-right pr-6">
+                                              <div className="flex items-center justify-end gap-1">
+                                                  <button onClick={() => setViewProduct(product)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md"><Eye className="w-4 h-4" /></button>
+                                                  <button onClick={() => handleEdit(product)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-md"><Pencil className="w-4 h-4" /></button>
+                                                  <button onClick={() => handleDelete(product.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md"><Trash2 className="w-4 h-4" /></button>
+                                              </div>
+                                          </td>
+                                      </tr>
+                                  ))}
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+              )}
+          </div>
+          
+          {currentItems.length === 0 && (
+              <div className="text-center py-20 bg-card border border-dashed border-border rounded-2xl mt-4">
+                  <Package className="w-16 h-16 mx-auto mb-4 opacity-10" />
+                  <h3 className="text-xl font-medium text-muted-foreground">No matching products found</h3>
+                  <p className="text-sm text-muted-foreground/60">Try searching for something else or clear filters.</p>
+              </div>
+          )}
       </div>
 
-      {/* Pagination */}
+      {/* Footer Actions: Pagination */}
       {filteredProducts.length > itemsPerPage && (
-        <Pagination 
-           currentPage={currentPage}
-           totalPages={totalPages}
-           onPageChange={setCurrentPage}
-        />
+        <div className="pt-8">
+            <Pagination 
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+            />
+        </div>
       )}
 
-      {/* FAB */}
+      {/* FAB Mobile Only */}
       <button 
         onClick={() => setShowAddForm(true)}
-        className="fixed bottom-24 md:bottom-8 right-6 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-xl flex md:hidden items-center justify-center hover:scale-105 active:scale-95 transition-transform z-40"
+        className="fixed bottom-24 right-6 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-xl flex md:hidden items-center justify-center hover:scale-110 active:scale-95 transition-all z-40"
       >
         <Plus className="w-8 h-8" />
       </button>
 
-      {/* Add Product Modal */}
+      {/* Add/Edit Modal */}
       <AnimatePresence>
         {showAddForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -724,138 +655,39 @@ export default function Inventory() {
             >
               <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30">
                 <h3 className="text-xl font-bold">{editingId ? 'Edit Product' : 'Add New Product'}</h3>
-                <button onClick={closeForm} className="p-1 hover:bg-black/10 rounded-full">
+                <button onClick={closeForm} className="p-1 hover:bg-muted rounded-full">
                   <X className="w-6 h-6" /> 
                 </button>
               </div>
               
               <form onSubmit={handleAddProduct} className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                  <div className="space-y-2 col-span-2">
                     <label className="text-sm font-medium">Product Name</label>
-                    <input 
-                      required 
-                      className="w-full px-3 py-2 border border-input rounded-lg bg-background"
-                      value={newProduct.name}
-                      onChange={e => setNewProduct({...newProduct, name: e.target.value})}
-                    />
+                    <input required className="w-full px-3 py-2 border border-input rounded-lg bg-background" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">SKU</label>
-                    <input 
-                      className="w-full px-3 py-2 border border-input rounded-lg bg-background"
-                      value={newProduct.sku}
-                      onChange={e => setNewProduct({...newProduct, sku: e.target.value})}
-                    />
+                    <label className="text-sm font-medium">SKU (Optional)</label>
+                    <input className="w-full px-3 py-2 border border-input rounded-lg bg-background" value={newProduct.sku} onChange={e => setNewProduct({...newProduct, sku: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Initial Stock</label>
+                    <input type="number" required className="w-full px-3 py-2 border border-input rounded-lg bg-background" value={newProduct.stock} onChange={e => setNewProduct({...newProduct, stock: e.target.value})} />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Selling Price (₹)</label>
-                    <input 
-                      type="number" 
-                      className="w-full px-3 py-2 border border-input rounded-lg bg-background"
-                      value={newProduct.price}
-                      onChange={e => setNewProduct({...newProduct, price: e.target.value})}
-                      placeholder="0.00"
-                    />
+                    <input type="number" className="w-full px-3 py-2 border border-input rounded-lg bg-background" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Buying Price (₹)</label>
-                    <input 
-                      type="number" 
-                      className="w-full px-3 py-2 border border-input rounded-lg bg-background"
-                      value={newProduct.buyingPrice}
-                      onChange={e => setNewProduct({...newProduct, buyingPrice: e.target.value})}
-                      placeholder="Per Unit Cost"
-                    />
+                    <input type="number" className="w-full px-3 py-2 border border-input rounded-lg bg-background" value={newProduct.buyingPrice} onChange={e => setNewProduct({...newProduct, buyingPrice: e.target.value})} />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Current Stock</label>
-                    <input 
-                      type="number"
-                      required 
-                      className="w-full px-3 py-2 border border-input rounded-lg bg-background"
-                      value={newProduct.stock}
-                      onChange={e => setNewProduct({...newProduct, stock: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Min Stock Alert</label>
-                    <input 
-                      type="number"
-                      className="w-full px-3 py-2 border border-input rounded-lg bg-background"
-                      value={newProduct.minStock}
-                      onChange={e => setNewProduct({...newProduct, minStock: e.target.value})}
-                    />
-                  </div>
-                </div>
-
-                {/* Dealer Name (Visible in Edit too) */}
                 <div className="space-y-2">
                     <label className="text-sm font-medium">Supplier / Dealer Name</label>
-                    <input 
-                        className="w-full px-3 py-2 border border-input rounded-lg bg-background"
-                        placeholder="e.g. ABC Suppliers"
-                        value={newProduct.dealerName}
-                        onChange={e => setNewProduct({...newProduct, dealerName: e.target.value})}
-                    />
+                    <input className="w-full px-3 py-2 border border-input rounded-lg bg-background" value={newProduct.dealerName} onChange={e => setNewProduct({...newProduct, dealerName: e.target.value})} placeholder="e.g. ABC Wholesalers" />
                 </div>
-
-                {/* Dealer & Payment Section (Only on Add) */}
-                {!editingId && (
-                    <div className="bg-muted/30 p-4 rounded-xl space-y-4 border border-border/50">
-                        <div className="flex items-center justify-between">
-                            <label className="text-sm font-medium flex items-center gap-2 cursor-pointer">
-                                <input 
-                                    type="checkbox"
-                                    checked={recordPayment}
-                                    onChange={e => setRecordPayment(e.target.checked)}
-                                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                />
-                                Record Payment Details?
-                            </label>
-                            {recordPayment && newProduct.buyingPrice && newProduct.stock && (
-                                 <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                    Total: ₹{(parseFloat(newProduct.buyingPrice) * parseInt(newProduct.stock)).toLocaleString()}
-                                 </span>
-                            )}
-                        </div>
-
-                        <AnimatePresence>
-                            {recordPayment && (
-                                <motion.div 
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    className="grid grid-cols-1 gap-4 overflow-hidden pt-2"
-                                >
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-medium text-muted-foreground">Amount Paid Now</label>
-                                        <input 
-                                            type="number"
-                                            className="w-full px-3 py-2 border border-input rounded-lg bg-background text-sm"
-                                            placeholder="0.00"
-                                            value={newProduct.amountPaid}
-                                            onChange={e => setNewProduct({...newProduct, amountPaid: e.target.value})}
-                                        />
-                                        {newProduct.buyingPrice && newProduct.stock && (
-                                            <div className="text-[10px] text-right text-muted-foreground">
-                                                Pending: <span className="text-red-500 font-medium">
-                                                    ₹{Math.max(0, (parseFloat(newProduct.buyingPrice) * parseInt(newProduct.stock)) - (parseFloat(newProduct.amountPaid) || 0)).toLocaleString()}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                )}
-                
-                {/* On Edit, no extra field needed as main one is shared */}
-                {/* {editingId && ...} removed */}
 
                 <div className="space-y-3">
                     <label className="text-sm font-medium">Product Image</label>
@@ -863,22 +695,13 @@ export default function Inventory() {
                         initialImage={newProduct.image}
                         onUpload={(url) => setNewProduct({ ...newProduct, image: url })}
                         folder="inventory"
-                        placeholder="Upload Product Image"
+                        placeholder="Upload Image"
                     />
                 </div>
 
                 <div className="pt-4 flex gap-3 justify-end">
-                   <button 
-                     type="button"
-                     onClick={closeForm}
-                     className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-lg"
-                   >
-                     Cancel
-                   </button>
-                   <button 
-                     type="submit"
-                     className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
-                   >
+                   <button type="button" onClick={closeForm} className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-lg">Cancel</button>
+                   <button type="submit" className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 shadow-md">
                      {editingId ? 'Save Changes' : 'Add Product'}
                    </button>
                 </div>

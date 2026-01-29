@@ -13,6 +13,7 @@ import Testimonials from '../components/features/Testimonials'
 import HowItWorks from '../components/features/HowItWorks'
 import FAQ from '../components/features/FAQ'
 import Pricing from '../components/features/Pricing'
+import BusinessImpact from '../components/features/BusinessImpact'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -109,6 +110,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+      
+      {/* Business Impact Section */}
+      <BusinessImpact />
 
       {/* Features Section (Bento Grid) */}
       <div id="features">
@@ -116,7 +120,7 @@ export default function Home() {
       </div>
 
       {/* How It Works Section */}
-      <HowItWorks />
+      {/* <HowItWorks /> */}
 
       {/* Testimonials Section */}
       {/* <Testimonials /> */}

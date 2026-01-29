@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, Phone, Search, IndianRupee, FileText, Download, Pencil, Trash2, Eye } from 'lucide-react'
+import { Plus, X, Phone, Search, IndianRupee, FileText, Download, Pencil, Trash2, Eye, Calendar } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useOrganization } from '../../context/OrganizationContext'
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO, startOfMonth, endOfMonth } from 'date-fns'
@@ -26,6 +26,7 @@ export default function Workers() {
   const [showPayModal, setShowPayModal] = useState(false) // Pay Worker Modal
   const [showHistoryModal, setShowHistoryModal] = useState(false) // History Modal
   const [historyTab, setHistoryTab] = useState('attendance') // 'history' | 'attendance'
+  const [attendanceMode, setAttendanceMode] = useState('view') // 'view' | 'edit'
   
   const [selectedWorker, setSelectedWorker] = useState(null)
   const [editingId, setEditingId] = useState(null)
@@ -232,6 +233,15 @@ export default function Workers() {
 
   const openHistoryModal = (worker) => {
     setSelectedWorker(worker)
+    setHistoryTab('attendance') 
+    setAttendanceMode('view')
+    setShowHistoryModal(true)
+  }
+
+  const openAttendanceModal = (worker) => {
+    setSelectedWorker(worker)
+    setHistoryTab('attendance')
+    setAttendanceMode('edit')
     setShowHistoryModal(true)
   }
 
@@ -366,13 +376,20 @@ export default function Workers() {
                          >
                            <Pencil className="w-4 h-4" />
                          </button>
-                         <button 
-                             onClick={() => openHistoryModal(worker)}
-                             className="p-1.5 text-muted-foreground hover:bg-muted rounded-md transition-colors"
-                             title="View History"
-                           >
-                             <Eye className="w-4 h-4" />
-                         </button>
+                          <button 
+                              onClick={() => openHistoryModal(worker)}
+                              className="p-1.5 text-muted-foreground hover:bg-muted rounded-md transition-colors"
+                              title="View History & Logs"
+                            >
+                              <Eye className="w-4 h-4" />
+                          </button>
+                          <button 
+                              onClick={() => openAttendanceModal(worker)}
+                              className="p-1.5 text-primary hover:bg-primary/10 rounded-md transition-colors"
+                              title="Mark Attendance"
+                            >
+                              <Calendar className="w-4 h-4" />
+                          </button>
                          <button 
                            onClick={() => handleDelete(worker.id)}
                            className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
@@ -412,10 +429,11 @@ export default function Workers() {
                                 </div>
                             </div>
                         </div>
-                        <div className="flex gap-1 flex-shrink-0">
-                            <button onClick={() => handleEdit(worker)} className="p-2 text-muted-foreground hover:bg-muted rounded-full"><Pencil className="w-5 h-5" /></button>
-                            <button onClick={() => openHistoryModal(worker)} className="p-2 text-muted-foreground hover:bg-muted rounded-full"><Eye className="w-5 h-5" /></button>
-                            <button onClick={() => handleDelete(worker.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"><Trash2 className="w-5 h-5" /></button>
+                         <div className="flex gap-1 flex-shrink-0">
+                            <button onClick={() => openAttendanceModal(worker)} className="p-2 text-primary hover:bg-primary/10 rounded-full" title="Mark Attendance"><Calendar className="w-5 h-5" /></button>
+                            <button onClick={() => handleEdit(worker)} className="p-2 text-muted-foreground hover:bg-muted rounded-full" title="Edit"><Pencil className="w-5 h-5" /></button>
+                            <button onClick={() => openHistoryModal(worker)} className="p-2 text-muted-foreground hover:bg-muted rounded-full" title="History"><Eye className="w-5 h-5" /></button>
+                            <button onClick={() => handleDelete(worker.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full" title="Delete"><Trash2 className="w-5 h-5" /></button>
                         </div>
                     </div>
                     {/* Stats */}
@@ -529,35 +547,40 @@ export default function Workers() {
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-card w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
               <div className="p-6 border-b border-border flex justify-between items-start gap-4 bg-muted/30">
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-xl font-bold break-words pr-2">{selectedWorker.name}</h3>
+                  <h3 className="text-xl font-bold break-words pr-2">
+                      {attendanceMode === 'edit' ? 'Record Attendance' : 'Worker History'}
+                  </h3>
                   <div className="flex gap-2 text-xs mt-1">
-                      <span className="bg-muted px-2 py-0.5 rounded text-muted-foreground whitespace-nowrap">Log & Audit</span>
+                      <span className="bg-primary/10 text-primary px-2 py-0.5 rounded font-bold uppercase tracking-wider">{selectedWorker.name}</span>
                   </div>
                 </div>
                 <button onClick={() => setShowHistoryModal(false)} className="p-1 hover:bg-black/10 rounded-full flex-shrink-0"><X className="w-5 h-5" /></button>
               </div>
               
               <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                   <div className="flex space-x-1 bg-muted/20 p-1 rounded-lg mb-4">
-                       <button 
-                           onClick={() => setHistoryTab('attendance')}
-                           className={`flex-1 py-1.5 px-3 text-sm font-medium rounded-md transition-all ${historyTab === 'attendance' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'}`}
-                       >
-                           Attendance
-                       </button>
-                       <button 
-                           onClick={() => setHistoryTab('history')}
-                           className={`flex-1 py-1.5 px-3 text-sm font-medium rounded-md transition-all ${historyTab === 'history' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'}`}
-                       >
-                           History & Logs
-                       </button>
-                   </div>
+                   {attendanceMode === 'view' && (
+                       <div className="flex space-x-1 bg-muted/20 p-1 rounded-lg mb-4">
+                           <button 
+                               onClick={() => setHistoryTab('attendance')}
+                               className={`flex-1 py-1.5 px-3 text-sm font-medium rounded-md transition-all ${historyTab === 'attendance' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'}`}
+                           >
+                               Attendance
+                           </button>
+                           <button 
+                               onClick={() => setHistoryTab('history')}
+                               className={`flex-1 py-1.5 px-3 text-sm font-medium rounded-md transition-all ${historyTab === 'history' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'}`}
+                           >
+                               History & Logs
+                           </button>
+                       </div>
+                   )}
 
                    {historyTab === 'attendance' ? (
                        <AttendanceCalendar 
                             workerId={selectedWorker.id} 
                             organizationId={currentOrg.id} 
                             onAttendanceChange={fetchData} 
+                            mode={attendanceMode}
                         />
                    ) : (
                        <>

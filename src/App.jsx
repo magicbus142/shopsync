@@ -4,8 +4,7 @@ import { useTheme } from './context/ThemeContext'
 import { ThemeSwitcher } from './components/ui/ThemeSwitcher' // Placeholder for now
 
 import Home from './pages/Home'
-import Login from './pages/Login'
-import Signup from './pages/Signup'
+import Auth from './pages/Auth'
 import Onboarding from './pages/Onboarding'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ForgotPassword from './pages/ForgotPassword'
@@ -43,8 +42,8 @@ function App() {
         <Layout>
           <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+          <Route path="/login" element={<Auth />} />
+          <Route path="/signup" element={<Auth />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="/onboarding" element={<Onboarding />} />

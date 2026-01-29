@@ -17,8 +17,9 @@ export default function ForgotPassword() {
 
     try {
       // Configure the redirect URL to point to our update-password page
-      // Use window.location.origin to get the current domain (e.g., localhost:5173 or production domain)
-      const redirectTo = `${window.location.origin}/update-password`
+      // Prioritize VITE_SITE_URL if available (for production), fallback to window.location.origin
+      const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin
+      const redirectTo = `${siteUrl}/update-password`
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo,

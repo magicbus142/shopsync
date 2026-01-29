@@ -27,7 +27,7 @@ const SIDEBAR_ITEMS = [
   { icon: UsersIcon, label: "Workers", href: "/dashboard/workers" },
   { icon: Receipt, label: "Transactions", href: "/dashboard/transactions" },
   { icon: FileText, label: "Invoice", href: "/dashboard/invoice" },
-  { icon: CreditCard, label: "Subscription", href: "/dashboard/subscription" },
+  // { icon: CreditCard, label: "Subscription", href: "/dashboard/subscription" },
   // { icon: BarChart3, label: "Marketing Hub", href: "/dashboard/marketing" },
   { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ];
