@@ -156,8 +156,58 @@ export default function Transactions() {
 
   const fetchProducts = async () => {
     if (!currentOrg) return
-    const { data } = await supabase.from('products').select('*').eq('organization_id', currentOrg.id)
-    setProducts(data || [])
+    try {
+      const { data: prods, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('organization_id', currentOrg.id)
+        
+      if (error) throw error
+
+      const { data: incomeTxs } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('organization_id', currentOrg.id)
+        .ilike('type', 'income')
+
+      const txIds = (incomeTxs || []).map(t => t.id)
+      let soldMap = {}
+
+      if (txIds.length > 0) {
+        const { data: items } = await supabase
+          .from('transaction_items')
+          .select('product_id, quantity')
+          .in('transaction_id', txIds)
+
+        if (items) {
+          items.forEach(item => {
+            if (item.product_id) {
+              soldMap[item.product_id] = (soldMap[item.product_id] || 0) + Number(item.quantity || 0)
+            }
+          })
+        }
+      }
+
+      const updatedProducts = await Promise.all((prods || []).map(async (prod) => {
+        const soldQty = soldMap[prod.id] || 0
+        const initStock = prod.initial_stock !== null && prod.initial_stock !== undefined ? Number(prod.initial_stock) : (Number(prod.stock) + soldQty)
+        const expectedStock = Math.max(0, initStock - soldQty)
+
+        if (prod.stock !== expectedStock || prod.initial_stock === null || prod.initial_stock === undefined) {
+          await supabase
+            .from('products')
+            .update({ stock: expectedStock, initial_stock: initStock })
+            .eq('id', prod.id)
+
+          return { ...prod, stock: expectedStock, initial_stock: initStock }
+        }
+        return prod
+      }))
+
+      setProducts(updatedProducts)
+    } catch (err) {
+      console.error('Error fetching products:', err)
+    }
   }
 
   const fetchWorkers = async () => {
@@ -729,29 +779,35 @@ export default function Transactions() {
                 initial={{ opacity: 0, scale: 0.95, y: 20 }} 
                 animate={{ opacity: 1, scale: 1, y: 0 }} 
                 exit={{ opacity: 0, scale: 0.95, y: 20 }} 
-                className="bg-card w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-xl overflow-hidden flex flex-col relative"
+                className="bg-card w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col relative border border-border/50"
                 onClick={e => e.stopPropagation()}
              >
-                    {/* Header Section */}
-                    <div className="p-6 md:p-8 flex-shrink-0">
+                    {/* Colored Header based on type */}
+                    <div className={`p-6 md:p-8 flex-shrink-0 ${viewTransaction.type === 'income' ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-rose-500 to-pink-600'}`}>
                         <div className="flex justify-between items-start">
                              <div>
-                                <div className="flex items-center gap-2 mb-2 text-muted-foreground font-semibold">
-                                    {viewTransaction.type === 'income' ? <ArrowDownLeft className="w-5 h-5 text-emerald-500" /> : <ArrowUpRight className="w-5 h-5 text-rose-500" />}
-                                    <span className="text-sm uppercase tracking-wide">{viewTransaction.type === 'income' ? 'Sales / Income' : 'Expense'}</span>
+                                <div className="flex items-center gap-2 mb-2 text-white/80 font-semibold">
+                                    {viewTransaction.type === 'income' ? <ArrowDownLeft className="w-5 h-5 text-white" /> : <ArrowUpRight className="w-5 h-5 text-white" />}
+                                    <span className="text-sm uppercase tracking-widest font-bold">{viewTransaction.type === 'income' ? 'Sales / Income' : 'Expense'}</span>
                                 </div>
-                                <h2 className="text-5xl font-bold tracking-tight text-foreground mb-3">₹{Number(viewTransaction.amount).toLocaleString()}</h2>
+                                <h2 className="text-5xl font-black tracking-tight text-white mb-3">₹{Number(viewTransaction.amount).toLocaleString()}</h2>
                                 <div className="flex items-center gap-3">
-                                    <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider ${viewTransaction.payment_status?.toLowerCase() === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : viewTransaction.payment_status?.toLowerCase() === 'pending' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'}`}>
+                                    <span className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider backdrop-blur-sm border ${
+                                        viewTransaction.payment_status?.toLowerCase() === 'paid' 
+                                          ? 'bg-white/20 text-white border-white/30' 
+                                          : viewTransaction.payment_status?.toLowerCase() === 'pending' 
+                                          ? 'bg-red-900/40 text-red-100 border-red-300/30' 
+                                          : 'bg-amber-400/30 text-amber-100 border-amber-300/40'
+                                    }`}>
                                         {viewTransaction.payment_status}
                                     </span>
-                                    <span className="text-sm text-muted-foreground font-medium">{format(new Date(viewTransaction.date), 'dd MMMM yyyy')}</span>
+                                    <span className="text-sm text-white/80 font-medium">{format(new Date(viewTransaction.date), 'dd MMMM yyyy')}</span>
                                 </div>
                              </div>
 
                              <div className="flex flex-col items-end gap-2">
-                                <button onClick={() => setViewTransaction(null)} className="p-2 hover:bg-muted rounded-full transition-colors">
-                                    <X className="w-5 h-5 text-muted-foreground" />
+                                <button onClick={() => setViewTransaction(null)} className="p-2 hover:bg-white/20 rounded-full transition-colors text-white">
+                                    <X className="w-5 h-5" />
                                 </button>
                                 <button
                                     onClick={() => {
@@ -760,7 +816,7 @@ export default function Transactions() {
                                         const url = `https://wa.me/?text=${encodeURIComponent(text)}`
                                         window.open(url, '_blank')
                                     }}
-                                    className="hidden md:flex bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg text-sm font-bold items-center gap-2 transition-colors shadow-md shadow-primary/20"
+                                    className="hidden md:flex bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm border border-white/30 px-4 py-2 rounded-lg text-sm font-bold items-center gap-2 transition-colors"
                                 >
                                     <Share2 className="w-4 h-4" /> Share Receipt
                                 </button>
@@ -773,16 +829,17 @@ export default function Transactions() {
                         
                         {/* Items Section - Hide for Salary/Wages */}
                         {!['Salary', 'Wages'].includes(viewTransaction.category) && (
-                            <div className="rounded-xl overflow-hidden border border-border shadow-sm">
-                                <div className="bg-primary/90 px-4 py-2.5">
-                                    <h4 className="text-xs font-bold text-primary-foreground uppercase tracking-wider">Items Purchased</h4>
+                            <div className="rounded-2xl overflow-hidden border border-border shadow-sm">
+                                <div className={`px-4 py-3 flex items-center gap-2 ${viewTransaction.type === 'income' ? 'bg-emerald-500/10 border-b border-emerald-500/20' : 'bg-rose-500/10 border-b border-rose-500/20'}`}>
+                                    <div className={`w-2 h-2 rounded-full ${viewTransaction.type === 'income' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                    <h4 className={`text-xs font-bold uppercase tracking-widest ${viewTransaction.type === 'income' ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>Items Purchased</h4>
                                 </div>
                                 <div className="bg-card p-4 space-y-3">
                                     {viewItems.length > 0 ? (
                                         viewItems.map((item, idx) => (
                                             <div key={idx} className="flex justify-between items-center text-sm border-b border-dashed border-border/60 last:border-0 pb-2 last:pb-0">
                                                 <div className="flex items-center gap-3">
-                                                    <span className="w-7 h-7 flex items-center justify-center bg-muted rounded-md text-xs font-bold text-muted-foreground">{item.quantity}x</span> 
+                                                    <span className={`w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold ${viewTransaction.type === 'income' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{item.quantity}x</span> 
                                                     <span className="font-medium text-foreground">{getProductName(item.product_id)}</span>
                                                 </div>
                                                 <span className="font-bold">₹{item.total_price.toLocaleString()}</span>
@@ -796,9 +853,10 @@ export default function Transactions() {
                         )}
 
                         {/* Payment History (Includes Summary) */}
-                        <div className="rounded-xl overflow-hidden border border-border shadow-sm">
-                             <div className="bg-primary/90 px-4 py-2.5">
-                                <h4 className="text-xs font-bold text-primary-foreground uppercase tracking-wider">Payment History</h4>
+                        <div className="rounded-2xl overflow-hidden border border-border shadow-sm">
+                             <div className={`px-4 py-3 flex items-center gap-2 ${viewTransaction.type === 'income' ? 'bg-emerald-500/10 border-b border-emerald-500/20' : 'bg-rose-500/10 border-b border-rose-500/20'}`}>
+                                <div className={`w-2 h-2 rounded-full ${viewTransaction.type === 'income' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                <h4 className={`text-xs font-bold uppercase tracking-widest ${viewTransaction.type === 'income' ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>Payment History</h4>
                             </div>
                             <div className="p-6">
                                 <PaymentHistory 
@@ -811,11 +869,11 @@ export default function Transactions() {
 
                         {/* Bottom Info */}
                         <div className="grid grid-cols-2 gap-4">
-                             <div className="p-4 rounded-xl border border-border bg-muted/20">
+                             <div className={`p-4 rounded-2xl border ${viewTransaction.type === 'income' ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800/30' : 'bg-rose-50 border-rose-200 dark:bg-rose-900/10 dark:border-rose-800/30'}`}>
                                   <p className="text-xs text-muted-foreground font-medium mb-1">Payment Method</p>
                                   <p className="font-bold text-foreground">{viewTransaction.payment_method || 'Cash'}</p>
                              </div>
-                             <div className="p-4 rounded-xl border border-border bg-muted/20">
+                             <div className={`p-4 rounded-2xl border ${viewTransaction.type === 'income' ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800/30' : 'bg-rose-50 border-rose-200 dark:bg-rose-900/10 dark:border-rose-800/30'}`}>
                                   <p className="text-xs text-muted-foreground font-medium mb-1">{viewTransaction.type === 'income' ? 'Received From' : 'Paid To'}</p>
                                   <p className="font-bold text-foreground">{viewTransaction.party_name || viewTransaction.description || 'N/A'}</p>
                              </div>

@@ -72,31 +72,31 @@ export default function Home() {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+      <section className="relative pt-24 pb-16 sm:pt-32 sm:pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-secondary/20 via-background to-background opacity-70"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="text-center max-w-4xl mx-auto">
-            <div className="hero-badge inline-flex items-center rounded-full bg-secondary/10 px-3 py-1 text-sm font-medium text-primary mb-8 border border-secondary/20 shadow-sm">
+            <div className="hero-badge inline-flex items-center rounded-full bg-secondary/10 px-3 py-1 text-sm font-medium text-primary mb-6 border border-secondary/20 shadow-sm">
               <Sparkles className="w-4 h-4 mr-2" />
               <span>AI-Powered Business Intelligence</span>
             </div>
-            <h1 className="hero-title text-5xl md:text-7xl font-extrabold text-foreground tracking-tight mb-8 leading-tight">
+            <h1 className="hero-title text-4xl sm:text-5xl md:text-7xl font-extrabold text-foreground tracking-tight mb-6 leading-tight">
               Master Your Business Data with <span className="text-primary">Confidence</span>
             </h1>
-            <p className="hero-subtitle text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
+            <p className="hero-subtitle text-base sm:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
               Stop guessing. Start knowing. ShopSync brings professional-grade data intelligence to small businesses. Track inventory, manage transactions, and unlock AI-driven insights in one beautiful dashboard.  
             </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 px-4 sm:px-0">
               <Link 
                 to="/signup" 
-                className="hero-btn inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-xl text-primary-foreground bg-primary hover:bg-primary/90 transition-all shadow-lg hover:shadow-primary/30 hover:-translate-y-1"
+                className="hero-btn inline-flex items-center justify-center px-7 py-3.5 text-base sm:text-lg font-semibold rounded-xl text-primary-foreground bg-primary hover:bg-primary/90 transition-all shadow-lg hover:shadow-primary/30 hover:-translate-y-1"
               >
                 Start Free Trial
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Link>
               <Link 
                 to="/login" 
-                className="hero-btn inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-xl text-foreground bg-card border border-border hover:bg-accent/10 hover:border-accent transition-all shadow-sm hover:shadow-md"
+                className="hero-btn inline-flex items-center justify-center px-7 py-3.5 text-base sm:text-lg font-semibold rounded-xl text-foreground bg-card border border-border hover:bg-accent/10 hover:border-accent transition-all shadow-sm hover:shadow-md"
               >
                 Live Demo
               </Link>
@@ -104,7 +104,7 @@ export default function Home() {
           </div>
           
           {/* Hero Animation */}
-          <div className="hero-preview mt-20 relative">
+          <div className="hero-preview mt-12 sm:mt-20 relative">
              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/20 pointer-events-none z-10"></div>
              <DashboardPreview />
           </div>
@@ -119,28 +119,19 @@ export default function Home() {
         <FeaturesBento />
       </div>
 
-      {/* How It Works Section */}
-      {/* <HowItWorks /> */}
-
-      {/* Testimonials Section */}
-      {/* <Testimonials /> */}
-
-      {/* FAQ Section */}
-      {/* <FAQ /> */}
-
       {/* CTA Section */}
-      <section className="cta-section py-24 bg-muted/50 border-t border-border relative overflow-hidden">
+      <section className="cta-section py-16 sm:py-24 bg-muted/50 border-t border-border relative overflow-hidden">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-primary/10 via-background to-background opacity-50"></div>
         <div className="max-w-4xl mx-auto px-4 relative text-center">
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-8">Ready to transform your business?</h2>
-          <p className="text-xl text-muted-foreground mb-10">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold text-foreground mb-6">Ready to transform your business?</h2>
+          <p className="text-base sm:text-xl text-muted-foreground mb-8">
             Join thousands of small business owners who are making smarter decisions with ShopSync. 
             No credit card required for trial.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
              <Link 
                 to="/signup" 
-                className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold rounded-xl text-primary-foreground bg-primary hover:bg-primary/90 transition-all shadow-lg hover:shadow-primary/20 hover:-translate-y-1"
+                className="inline-flex items-center justify-center px-8 py-4 text-base sm:text-lg font-bold rounded-xl text-primary-foreground bg-primary hover:bg-primary/90 transition-all shadow-lg hover:shadow-primary/20 hover:-translate-y-1"
               >
                 Get Started Now
               </Link>
@@ -152,3 +143,4 @@ export default function Home() {
     </div>
   )
 }
+

@@ -80,19 +80,65 @@ export default function Inventory() {
   }, [currentOrg])
 
   const fetchProducts = async () => {
+    if (!currentOrg) return
     setLoading(true)
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('organization_id', currentOrg.id)
-      .order('created_at', { ascending: false })
-    
-    if (error) {
-      console.error('Error fetching products:', error)
-    } else {
-      setProducts(data || [])
+    try {
+      const { data: prods, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('organization_id', currentOrg.id)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+
+      // Fetch all income transactions for this org to calculate total sold per product
+      const { data: incomeTxs } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('organization_id', currentOrg.id)
+        .ilike('type', 'income')
+
+      const txIds = (incomeTxs || []).map(t => t.id)
+
+      let soldMap = {}
+      if (txIds.length > 0) {
+        const { data: items } = await supabase
+          .from('transaction_items')
+          .select('product_id, quantity')
+          .in('transaction_id', txIds)
+
+        if (items) {
+          items.forEach(item => {
+            if (item.product_id) {
+              soldMap[item.product_id] = (soldMap[item.product_id] || 0) + Number(item.quantity || 0)
+            }
+          })
+        }
+      }
+
+      // Sync product stock if necessary
+      const updatedProducts = await Promise.all((prods || []).map(async (prod) => {
+        const soldQty = soldMap[prod.id] || 0
+        const initStock = prod.initial_stock !== null && prod.initial_stock !== undefined ? Number(prod.initial_stock) : (Number(prod.stock) + soldQty)
+        const expectedStock = Math.max(0, initStock - soldQty)
+
+        if (prod.stock !== expectedStock || prod.initial_stock === null || prod.initial_stock === undefined) {
+          await supabase
+            .from('products')
+            .update({ stock: expectedStock, initial_stock: initStock })
+            .eq('id', prod.id)
+
+          return { ...prod, stock: expectedStock, initial_stock: initStock }
+        }
+        return prod
+      }))
+
+      setProducts(updatedProducts)
+    } catch (err) {
+      console.error('Error fetching products:', err)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleDelete = (id) => {

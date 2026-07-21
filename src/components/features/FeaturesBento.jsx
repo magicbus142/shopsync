@@ -31,30 +31,30 @@ export default function FeaturesBento() {
   }, { scope: containerRef })
 
   return (
-    <section ref={containerRef} className="py-24 bg-background text-foreground transition-colors duration-300">
+    <section ref={containerRef} className="py-16 sm:py-24 bg-background text-foreground transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-20 text-center">
-          <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
+        <div className="mb-12 sm:mb-20 text-center">
+          <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold tracking-tight mb-6">
             Everything you need. <br />
             <span className="text-muted-foreground">All in one place.</span>
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 auto-rows-[minmax(180px,auto)]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 auto-rows-[minmax(180px,auto)]">
           
           {/* Card 1: Smart Transactions (Large Square) */}
-          <div className="feature-card col-span-1 md:col-span-2 md:row-span-2 bg-card border border-border rounded-3xl p-8 flex flex-col justify-between hover:shadow-xl transition-all group overflow-hidden relative">
+          <div className="feature-card col-span-1 sm:col-span-2 md:col-span-2 md:row-span-2 bg-card border border-border rounded-3xl p-6 sm:p-8 flex flex-col justify-between hover:shadow-xl transition-all group overflow-hidden relative">
             <div className="z-10">
               <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center mb-4">
                 <BarChart3 className="w-6 h-6 text-blue-400" />
               </div>
-              <h3 className="text-2xl font-medium mb-2">Smart Transactions</h3>
+              <h3 className="text-xl sm:text-2xl font-medium mb-2">Smart Transactions</h3>
               <p className="text-muted-foreground max-w-sm">
                 Record daily sales, expenses, and payments with just a few taps.
               </p>
             </div>
             {/* Visual: Mock Chart */}
-            <div className="mt-8 relative h-48 w-full">
+            <div className="mt-8 relative h-40 sm:h-48 w-full">
                <div className="absolute inset-x-0 bottom-0 top-10 bg-gradient-to-t from-blue-500/10 to-transparent rounded-t-xl border-t border-blue-500/20"></div>
                <div className="absolute bottom-0 left-0 right-0 h-32 flex items-end justify-between gap-2 px-4 pb-0">
                   {[40, 70, 50, 90, 60, 80, 50].map((h, i) => (
@@ -65,12 +65,12 @@ export default function FeaturesBento() {
           </div>
 
           {/* Card 2: AI Advisor (Tall) */}
-          <div className="feature-card col-span-1 md:row-span-2 bg-card border border-border rounded-3xl p-8 flex flex-col justify-between hover:shadow-xl transition-all relative overflow-hidden">
+          <div className="feature-card col-span-1 sm:col-span-1 md:row-span-2 bg-card border border-border rounded-3xl p-6 sm:p-8 flex flex-col justify-between hover:shadow-xl transition-all relative overflow-hidden">
             <div className="z-10">
                <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center mb-4">
                 <Sparkles className="w-6 h-6 text-purple-400" />
               </div>
-              <h3 className="text-2xl font-medium mb-2">AI Advisor</h3>
+              <h3 className="text-xl sm:text-2xl font-medium mb-2">AI Advisor</h3>
               <p className="text-muted-foreground text-sm">
                 &quot;How&apos;s my profit this month?&quot;
               </p>
@@ -109,8 +109,8 @@ export default function FeaturesBento() {
           </div>
 
           {/* Card 5: Team (Wide) */}
-          <div className="feature-card col-span-1 md:col-span-2 bg-card border border-border rounded-3xl p-8 flex flex-row items-center justify-between hover:shadow-xl transition-all">
-             <div className="max-w-[60%]">
+          <div className="feature-card col-span-1 sm:col-span-2 bg-card border border-border rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:shadow-xl transition-all">
+             <div>
                 <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center mb-3">
                     <Users className="w-5 h-5 text-green-400" />
                 </div>
@@ -129,8 +129,8 @@ export default function FeaturesBento() {
           </div>
 
           {/* Card 6: Security (Wide) */}
-          <div className="feature-card col-span-1 md:col-span-2 bg-card border border-border rounded-3xl p-1 overflow-hidden relative group">
-             <div className="h-full bg-gradient-to-br from-card to-background rounded-[20px] p-8 flex flex-col justify-center items-center text-center relative z-10">
+          <div className="feature-card col-span-1 sm:col-span-2 bg-card border border-border rounded-3xl p-1 overflow-hidden relative group">
+             <div className="h-full bg-gradient-to-br from-card to-background rounded-[20px] p-6 sm:p-8 flex flex-col justify-center items-center text-center relative z-10">
                 <ShieldCheck className="w-12 h-12 text-teal-400 mb-4" />
                 <h3 className="text-xl font-medium mb-2">Enterprise Security</h3>
                 <p className="text-muted-foreground text-sm max-w-sm">

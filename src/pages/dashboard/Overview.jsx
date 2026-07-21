@@ -311,51 +311,50 @@ export default function Overview() {
 
   return (
     <>
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-8">
+      {/* ── Page Header ── */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-           <p className="text-muted-foreground mt-1">Overview of your business performance.</p>
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h2>
+          <p className="text-muted-foreground mt-1 text-sm">Overview of your business performance.</p>
         </div>
         
-        {/* Improved Date Filter UI matched to user friendly design */}
-        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4">
-           
-           <div className="bg-muted/30 p-1 rounded-xl flex gap-1">
-              {[
-                { id: 'today', label: 'Today' },
-                { id: 'week', label: 'This Week' },
-                { id: 'month', label: 'This Month' },
-                // { id: 'last_month', label: 'Last Month' },
-                { id: 'custom', label: 'Custom' },
-              ].map((filter) => (
-                <button
-                  key={filter.id}
-                  onClick={() => handleFilterChange(filter.id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    filterType === filter.id 
-                    ? 'bg-primary text-primary-foreground shadow-sm' 
-                    : 'text-muted-foreground hover:bg-white hover:text-foreground hover:shadow-sm'
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
-           </div>
+        {/* Date Filter */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+          <div className="bg-muted/40 p-1 rounded-xl flex gap-1 overflow-x-auto w-full sm:w-auto scrollbar-none">
+            {[
+              { id: 'today', label: 'Today' },
+              { id: 'week', label: 'This Week' },
+              { id: 'month', label: 'This Month' },
+              { id: 'custom', label: 'Custom' },
+            ].map((filter) => (
+              <button
+                key={filter.id}
+                onClick={() => handleFilterChange(filter.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+                  filterType === filter.id 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'text-muted-foreground hover:bg-card hover:text-foreground'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
 
-           {filterType === 'custom' && (
-             <motion.div 
-               initial={{ opacity: 0, x: -10 }} 
-               animate={{ opacity: 1, x: 0 }}
-               className="bg-card border border-border p-1.5 rounded-xl shadow-sm"
-             >
-                <DateRangePicker 
-                    from={dateRange.from}
-                    to={dateRange.to}
-                    onFromChange={(val) => setDateRange({...dateRange, from: val})}
-                    onToChange={(val) => setDateRange({...dateRange, to: val})}
-                />
-             </motion.div>
-           )}
+          {filterType === 'custom' && (
+            <motion.div 
+              initial={{ opacity: 0, x: -10 }} 
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-card border border-border p-1.5 rounded-xl shadow-sm w-full sm:w-auto"
+            >
+              <DateRangePicker 
+                  from={dateRange.from}
+                  to={dateRange.to}
+                  onFromChange={(val) => setDateRange({...dateRange, from: val})}
+                  onToChange={(val) => setDateRange({...dateRange, to: val})}
+              />
+            </motion.div>
+          )}
         </div>
       </div>
 
@@ -363,111 +362,94 @@ export default function Overview() {
         <div className="h-96 flex items-center justify-center text-muted-foreground">Loading Dashboard Data...</div>
       ) : (
         <>
-            {/* Financial Overview - Hero Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="relative overflow-hidden rounded-2xl border border-green-100 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:bg-card dark:border-green-900/20 group">
-                    <div className="absolute right-0 top-0 h-32 w-32 -mr-8 -mt-8 rounded-full bg-green-500/10 blur-3xl group-hover:bg-green-500/20 transition-all"></div>
-                    <div className="relative flex justify-between items-start">
-                        <div>
-                           <p className="text-sm font-medium text-muted-foreground mb-2">Total Income</p>
-                           <h3 className="text-3xl font-bold tracking-tight text-foreground">₹ {data.totalIncome.toLocaleString()}</h3>
-                           <div className="mt-2 flex items-center text-xs text-green-600 dark:text-green-400 font-medium bg-green-50 dark:bg-green-900/20 w-fit px-2 py-1 rounded-full">
-                             {/* <TrendingUp className="w-3 h-3 mr-1"/> +12% from last month */}
-                           </div>
+            {/* ── Hero Financial Cards ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+                {/* Income */}
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-5 shadow-lg shadow-emerald-500/20 text-white">
+                    <div className="absolute right-0 top-0 h-28 w-28 -mr-6 -mt-6 rounded-full bg-white/10 blur-2xl"></div>
+                    <div className="relative">
+                        <div className="flex justify-between items-start mb-3">
+                            <p className="text-sm font-semibold text-white/80 uppercase tracking-wider">Total Income</p>
+                            <div className="p-2 bg-white/20 rounded-xl"><TrendingUp className="w-4 h-4"/></div>
                         </div>
-                        <div className="p-3 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-xl shadow-sm"><TrendingUp className="w-6 h-6"/></div>
+                        <h3 className="text-3xl font-black tracking-tight">₹{data.totalIncome.toLocaleString()}</h3>
                     </div>
                 </div>
 
-                <div className="relative overflow-hidden rounded-2xl border border-red-100 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:bg-card dark:border-red-900/20 group">
-                    <div className="absolute right-0 top-0 h-32 w-32 -mr-8 -mt-8 rounded-full bg-red-500/10 blur-3xl group-hover:bg-red-500/20 transition-all"></div>
-                    <div className="relative flex justify-between items-start">
-                        <div>
-                           <p className="text-sm font-medium text-muted-foreground mb-2">Total Expenses</p>
-                           <h3 className="text-3xl font-bold tracking-tight text-foreground">₹ {data.totalExpenses.toLocaleString()}</h3>
-                           <div className="mt-2 flex items-center text-xs text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-900/20 w-fit px-2 py-1 rounded-full">
-                             {/* <TrendingDown className="w-3 h-3 mr-1"/> -4% from last month */}
-                           </div>
+                {/* Expenses */}
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 p-5 shadow-lg shadow-rose-500/20 text-white">
+                    <div className="absolute right-0 top-0 h-28 w-28 -mr-6 -mt-6 rounded-full bg-white/10 blur-2xl"></div>
+                    <div className="relative">
+                        <div className="flex justify-between items-start mb-3">
+                            <p className="text-sm font-semibold text-white/80 uppercase tracking-wider">Total Expenses</p>
+                            <div className="p-2 bg-white/20 rounded-xl"><TrendingDown className="w-4 h-4"/></div>
                         </div>
-                        <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl shadow-sm"><TrendingDown className="w-6 h-6"/></div>
+                        <h3 className="text-3xl font-black tracking-tight">₹{data.totalExpenses.toLocaleString()}</h3>
                     </div>
                 </div>
 
-                <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:bg-card dark:border-blue-900/20 group">
-                    <div className="absolute right-0 top-0 h-32 w-32 -mr-8 -mt-8 rounded-full bg-blue-500/10 blur-3xl group-hover:bg-blue-500/20 transition-all"></div>
-                    <div className="relative flex justify-between items-start">
-                        <div>
-                           <p className="text-sm font-medium text-muted-foreground mb-2">Net Profit</p>
-                           <h3 className={`text-3xl font-bold tracking-tight ${data.netProfit >= 0 ? 'text-foreground' : 'text-red-500'}`}>
-                               ₹ {data.netProfit.toLocaleString()}
-                           </h3>
-                           <p className="text-xs text-muted-foreground mt-2">Before Taxes</p>
+                {/* Net Profit */}
+                <div className={`relative overflow-hidden rounded-2xl p-5 shadow-lg text-white ${data.netProfit >= 0 ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-500/20' : 'bg-gradient-to-br from-red-600 to-rose-700 shadow-red-500/20'}`}>
+                    <div className="absolute right-0 top-0 h-28 w-28 -mr-6 -mt-6 rounded-full bg-white/10 blur-2xl"></div>
+                    <div className="relative">
+                        <div className="flex justify-between items-start mb-3">
+                            <p className="text-sm font-semibold text-white/80 uppercase tracking-wider">Net Profit</p>
+                            <div className="p-2 bg-white/20 rounded-xl"><Wallet className="w-4 h-4"/></div>
                         </div>
-                        <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl shadow-sm"><Wallet className="w-6 h-6"/></div>
+                        <h3 className="text-3xl font-black tracking-tight">₹{data.netProfit.toLocaleString()}</h3>
+                        <p className="text-xs text-white/60 mt-1">Before Taxes</p>
                     </div>
                 </div>
             </div>
 
-            {/* Secondary Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* ── Secondary Stats ── */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
                  {/* Receivables */}
-                 <div className="relative overflow-hidden rounded-2xl border border-orange-100 bg-white p-5 shadow-sm hover:shadow-md transition-all dark:bg-card dark:border-orange-900/20 group">
-                    <div className="absolute right-0 top-0 h-24 w-24 -mr-6 -mt-6 rounded-full bg-orange-500/10 blur-2xl group-hover:bg-orange-500/20 transition-all"></div>
-                    <div className="relative flex justify-between items-start">
-                        <div>
-                           <p className="text-sm font-medium text-muted-foreground mb-1">Receivables</p>
-                           <h3 className="text-2xl font-bold text-orange-600 dark:text-orange-400">₹ {(data.totalReceivables || 0).toLocaleString()}</h3>
-                           <p className="text-xs text-muted-foreground mt-1">Pending from Customers</p>
-                        </div>
-                        <div className="p-2.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-xl"><Clock className="w-5 h-5"/></div>
+                 <div className="relative overflow-hidden rounded-2xl border border-orange-200/50 bg-orange-50 dark:bg-orange-900/10 dark:border-orange-800/20 p-4 shadow-sm hover:shadow-md transition-all group">
+                    <div className="flex justify-between items-start mb-2">
+                        <p className="text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider">Receivables</p>
+                        <div className="p-1.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 rounded-lg"><Clock className="w-4 h-4"/></div>
                     </div>
-                </div>
+                    <h3 className="text-xl sm:text-2xl font-black text-orange-700 dark:text-orange-300">₹{(data.totalReceivables || 0).toLocaleString()}</h3>
+                    <p className="text-[10px] text-muted-foreground mt-1">Pending from Customers</p>
+                 </div>
 
                  {/* Payables */}
-                 <div className="relative overflow-hidden rounded-2xl border border-rose-100 bg-white p-5 shadow-sm hover:shadow-md transition-all dark:bg-card dark:border-rose-900/20 group">
-                    <div className="absolute right-0 top-0 h-24 w-24 -mr-6 -mt-6 rounded-full bg-rose-500/10 blur-2xl group-hover:bg-rose-500/20 transition-all"></div>
-                    <div className="relative flex justify-between items-start">
-                        <div>
-                           <p className="text-sm font-medium text-muted-foreground mb-1">Payables</p>
-                           <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400">₹ {(data.totalPayables || 0).toLocaleString()}</h3>
-                           <p className="text-xs text-muted-foreground mt-1">Pending to Dealers</p>
-                        </div>
-                        <div className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl"><Briefcase className="w-5 h-5"/></div>
+                 <div className="relative overflow-hidden rounded-2xl border border-rose-200/50 bg-rose-50 dark:bg-rose-900/10 dark:border-rose-800/20 p-4 shadow-sm hover:shadow-md transition-all group">
+                    <div className="flex justify-between items-start mb-2">
+                        <p className="text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Payables</p>
+                        <div className="p-1.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-lg"><Briefcase className="w-4 h-4"/></div>
                     </div>
-                </div>
+                    <h3 className="text-xl sm:text-2xl font-black text-rose-700 dark:text-rose-300">₹{(data.totalPayables || 0).toLocaleString()}</h3>
+                    <p className="text-[10px] text-muted-foreground mt-1">Pending to Dealers</p>
+                 </div>
 
                 {/* Inventory Link */}
-                <Link to="/dashboard/inventory" className="relative overflow-hidden rounded-2xl border border-border bg-white p-5 shadow-sm hover:shadow-md transition-all dark:bg-card group cursor-pointer block">
-                    <div className="absolute right-0 top-0 h-24 w-24 -mr-6 -mt-6 rounded-full bg-emerald-500/5 blur-2xl group-hover:bg-emerald-500/15 transition-all"></div>
-                    <div className="relative flex justify-between items-start">
-                        <div>
-                           <p className="text-sm font-medium text-muted-foreground mb-1">Inventory Items</p>
-                           <h3 className="text-2xl font-bold text-foreground">{data.inventoryCount}</h3>
-                           <p className="text-xs text-muted-foreground mt-1 text-emerald-600 dark:text-emerald-400">View Stock →</p>
-                        </div>
-                        <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl"><Package className="w-5 h-5"/></div>
+                <Link to="/dashboard/inventory" className="relative overflow-hidden rounded-2xl border border-emerald-200/50 bg-emerald-50 dark:bg-emerald-900/10 dark:border-emerald-800/20 p-4 shadow-sm hover:shadow-md transition-all group block">
+                    <div className="flex justify-between items-start mb-2">
+                        <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Inventory</p>
+                        <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-lg"><Package className="w-4 h-4"/></div>
                     </div>
+                    <h3 className="text-xl sm:text-2xl font-black text-emerald-700 dark:text-emerald-300">{data.inventoryCount}</h3>
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">View Stock →</p>
                 </Link>
 
                 {/* Workers Link */}
-                <Link to="/dashboard/workers" className="relative overflow-hidden rounded-2xl border border-border bg-white p-5 shadow-sm hover:shadow-md transition-all dark:bg-card group cursor-pointer block">
-                    <div className="absolute right-0 top-0 h-24 w-24 -mr-6 -mt-6 rounded-full bg-violet-500/5 blur-2xl group-hover:bg-violet-500/15 transition-all"></div>
-                    <div className="relative flex justify-between items-start">
-                        <div>
-                           <p className="text-sm font-medium text-muted-foreground mb-1">Total Staff</p>
-                           <h3 className="text-2xl font-bold text-foreground">{data.workersCount}</h3>
-                           <p className="text-xs text-muted-foreground mt-1 text-violet-600 dark:text-violet-400">Manage Team →</p>
-                        </div>
-                        <div className="p-2.5 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-xl"><Users className="w-5 h-5"/></div>
+                <Link to="/dashboard/workers" className="relative overflow-hidden rounded-2xl border border-violet-200/50 bg-violet-50 dark:bg-violet-900/10 dark:border-violet-800/20 p-4 shadow-sm hover:shadow-md transition-all group block">
+                    <div className="flex justify-between items-start mb-2">
+                        <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">Staff</p>
+                        <div className="p-1.5 bg-violet-100 dark:bg-violet-900/30 text-violet-600 rounded-lg"><Users className="w-4 h-4"/></div>
                     </div>
+                    <h3 className="text-xl sm:text-2xl font-black text-violet-700 dark:text-violet-300">{data.workersCount}</h3>
+                    <p className="text-[10px] text-violet-600 dark:text-violet-400 mt-1">Manage Team →</p>
                 </Link>
             </div>
 
-            {/* Income & Expense Trend Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* ── Charts Row 1 ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-5">
                 {/* Area Chart */}
-                <div className="bg-card border border-border rounded-xl p-6 shadow-sm h-[400px]">
-                    <h3 className="text-lg font-semibold mb-6 flex items-center justify-between">
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-sm h-[300px] sm:h-[380px]">
+                    <h3 className="text-base font-semibold mb-4 flex items-center justify-between">
                         <span>Income Trend</span>
                         <span className="text-xs font-normal text-muted-foreground px-2 py-1 bg-muted rounded-full">{data.chartData.length} Days</span>
                     </h3>
@@ -475,7 +457,7 @@ export default function Overview() {
                     <AreaChart data={data.chartData}>
                         <defs>
                             <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.1}/>
+                                <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.15}/>
                                 <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
                             </linearGradient>
                         </defs>
@@ -486,19 +468,20 @@ export default function Overview() {
                             axisLine={false} 
                             tickLine={false}
                             minTickGap={30}
+                            fontSize={11}
                         />
-                        <YAxis stroke="var(--color-muted-foreground)" axisLine={false} tickLine={false} tickFormatter={(value) => `₹${value}`} />
+                        <YAxis stroke="var(--color-muted-foreground)" axisLine={false} tickLine={false} tickFormatter={(value) => `₹${value}`} fontSize={11} />
                         <Tooltip 
                             contentStyle={{ backgroundColor: 'var(--color-background)', color: 'var(--color-foreground)', borderRadius: '8px', border: '1px solid var(--border)' }}
                         />
-                        <Area type="monotone" dataKey="sales" stroke="var(--color-primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
+                        <Area type="monotone" dataKey="sales" stroke="var(--color-primary)" strokeWidth={2.5} fillOpacity={1} fill="url(#colorSales)" />
                     </AreaChart>
                     </ResponsiveContainer>
                 </div>
 
                 {/* Pie Chart */}
-                <div className="bg-card border border-border rounded-xl p-6 shadow-sm h-[400px]">
-                    <h3 className="text-lg font-semibold mb-6">Expense Breakdown</h3>
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-sm h-[300px] sm:h-[380px]">
+                    <h3 className="text-base font-semibold mb-4">Expense Breakdown</h3>
                     {data.pieData.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-muted-foreground">No expenses in this period.</div>
                     ) : (
@@ -509,8 +492,8 @@ export default function Overview() {
                                     data={data.pieData}
                                     cx="50%"
                                     cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={100}
+                                    innerRadius={55}
+                                    outerRadius={90}
                                     paddingAngle={5}
                                     dataKey="value"
                                 >
@@ -524,11 +507,11 @@ export default function Overview() {
                                 />
                                 </PieChart>
                             </ResponsiveContainer>
-                            <div className="flex justify-center gap-4 mt-4 flex-wrap max-h-20 overflow-y-auto">
+                            <div className="flex justify-center gap-3 mt-2 flex-wrap max-h-16 overflow-y-auto">
                                 {data.pieData.map((entry, index) => (
-                                <div key={index} className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                                    <span className="text-sm text-muted-foreground">{entry.name}</span>
+                                <div key={index} className="flex items-center gap-1.5">
+                                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                                    <span className="text-xs text-muted-foreground">{entry.name}</span>
                                 </div>
                                 ))}
                             </div>
@@ -537,34 +520,34 @@ export default function Overview() {
                 </div>
             </div>
 
-            {/* Inventory & Workers Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* ── Charts Row 2 ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-5">
                 {/* Inventory Bar Chart */}
-                <div className="bg-card border border-border rounded-xl p-6 shadow-sm h-[400px]">
-                    <h3 className="text-lg font-semibold mb-6">Products Stock</h3>
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-sm h-[300px] sm:h-[380px]">
+                    <h3 className="text-base font-semibold mb-4">Products Stock</h3>
                     {data.inventoryBarData.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-muted-foreground">No products found.</div>
                     ) : (
                         <ResponsiveContainer width="100%" height="85%">
                            <BarChart data={data.inventoryBarData} layout="vertical" margin={{ right: 30 }}>
                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-secondary)" opacity={0.2} />
-                               <XAxis type="number" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
+                               <XAxis type="number" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
                                <YAxis 
                                   dataKey="name" 
                                   type="category" 
-                                  width={100} 
+                                  width={90} 
                                   stroke="var(--color-muted-foreground)" 
                                   axisLine={false} 
                                   tickLine={false}
-                                  fontSize={12}
+                                  fontSize={11}
                                />
                                <Tooltip 
                                   contentStyle={{ backgroundColor: 'var(--color-background)', color: 'var(--color-foreground)', borderRadius: '8px', border: '1px solid var(--border)' }}
                                   cursor={{fill: 'transparent'}}
                                />
-                               <Bar dataKey="initial" fill="#10B981" radius={[0, 4, 4, 0]} barSize={20} name="Initial Stock" />
-                               <Bar dataKey="stock" fill="#F97316" radius={[0, 4, 4, 0]} barSize={20} name="Current Stock">
-                                   <LabelList dataKey="stock" position="right" fill="var(--color-foreground)" fontSize={12} />
+                               <Bar dataKey="initial" fill="#10B981" radius={[0, 4, 4, 0]} barSize={16} name="Initial Stock" />
+                               <Bar dataKey="stock" fill="#F97316" radius={[0, 4, 4, 0]} barSize={16} name="Current Stock">
+                                   <LabelList dataKey="stock" position="right" fill="var(--color-foreground)" fontSize={11} />
                                </Bar>
                            </BarChart>
                         </ResponsiveContainer>
@@ -572,8 +555,8 @@ export default function Overview() {
                 </div>
 
                 {/* Worker Payments Bar Chart */}
-                <div className="bg-card border border-border rounded-xl p-6 shadow-sm h-[400px]">
-                    <h3 className="text-lg font-semibold mb-6">Highest Paid Staff (Period)</h3>
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-sm h-[300px] sm:h-[380px]">
+                    <h3 className="text-base font-semibold mb-4">Highest Paid Staff (Period)</h3>
                      {data.workerBarData.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-muted-foreground">No payment data in this period.</div>
                     ) : (
@@ -585,16 +568,16 @@ export default function Overview() {
                                   stroke="var(--color-muted-foreground)" 
                                   axisLine={false} 
                                   tickLine={false}
-                                  fontSize={12} 
+                                  fontSize={11} 
                                />
-                               <YAxis stroke="var(--color-muted-foreground)" axisLine={false} tickLine={false} tickFormatter={(value) => `₹${value}`} fontSize={12} />
+                               <YAxis stroke="var(--color-muted-foreground)" axisLine={false} tickLine={false} tickFormatter={(value) => `₹${value}`} fontSize={11} />
                                <Tooltip 
                                   contentStyle={{ backgroundColor: 'var(--color-background)', color: 'var(--color-foreground)', borderRadius: '8px', border: '1px solid var(--border)' }}
                                   cursor={{fill: 'transparent'}}
                                   formatter={(value) => `₹${value.toLocaleString()}`}
                                />
-                               <Bar dataKey="paid" fill="#8B5CF6" radius={[4, 4, 0, 0]} barSize={30} name="Total Paid">
-                                   <LabelList dataKey="paid" position="top" formatter={(value) => `₹${value}`} fill="var(--color-foreground)" fontSize={12} />
+                               <Bar dataKey="paid" fill="#8B5CF6" radius={[4, 4, 0, 0]} barSize={28} name="Total Paid">
+                                   <LabelList dataKey="paid" position="top" formatter={(value) => `₹${value}`} fill="var(--color-foreground)" fontSize={11} />
                                </Bar>
                            </BarChart>
                         </ResponsiveContainer>
@@ -602,122 +585,119 @@ export default function Overview() {
                 </div>
             </div>
 
-            {/* Product Revenue Chart */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                 <div className="bg-card border border-border rounded-xl p-6 shadow-sm h-[400px]">
-                    <h3 className="text-lg font-semibold mb-6">Top Selling Products (Revenue)</h3>
+            {/* ── Bottom Row: Revenue Chart + Pending Payments ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-5">
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-sm h-[300px] sm:h-[380px]">
+                    <h3 className="text-base font-semibold mb-4">Top Selling Products (Revenue)</h3>
                      {data.productRevenueData && data.productRevenueData.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-muted-foreground">No sales data in this period.</div>
                     ) : (
                         <ResponsiveContainer width="100%" height="85%">
                            <BarChart data={data.productRevenueData} layout="vertical" margin={{ right: 40 }}>
                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-secondary)" opacity={0.2} />
-                               <XAxis type="number" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `₹${val}`} />
+                               <XAxis type="number" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `₹${val}`} />
                                <YAxis 
                                   dataKey="name" 
                                   type="category" 
-                                  width={100} 
+                                  width={90} 
                                   stroke="var(--color-muted-foreground)" 
                                   axisLine={false} 
                                   tickLine={false}
-                                  fontSize={12}
+                                  fontSize={11}
                                />
                                <Tooltip 
                                   contentStyle={{ backgroundColor: 'var(--color-background)', color: 'var(--color-foreground)', borderRadius: '8px', border: '1px solid var(--border)' }}
                                   cursor={{fill: 'transparent'}}
                                   formatter={(value) => `₹${value.toLocaleString()}`}
                                />
-                               <Bar dataKey="revenue" fill="#10B981" radius={[0, 4, 4, 0]} barSize={30} name="Revenue">
-                                   <LabelList dataKey="revenue" position="right" formatter={(value) => `₹${value}`} fill="var(--color-foreground)" fontSize={12} />
+                               <Bar dataKey="revenue" fill="#10B981" radius={[0, 4, 4, 0]} barSize={24} name="Revenue">
+                                   <LabelList dataKey="revenue" position="right" formatter={(value) => `₹${value}`} fill="var(--color-foreground)" fontSize={11} />
                                </Bar>
                            </BarChart>
                         </ResponsiveContainer>
                     )}
                 </div>
-            {/* Pending Section */}
-            <div className="grid grid-cols-1 gap-6 pb-8">
-                 {/* Pending Payments */}
-                 <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-                    <div className="flex items-center gap-2 mb-6">
-                        <AlertCircle className="w-5 h-5 text-orange-500" />
-                        <h3 className="text-lg font-semibold">Pending Payments</h3>
-                    </div>
-                    {/* Added Scroll Container */}
-                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                         {data.pendingPayments.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-                                <CheckCircle className="w-10 h-10 mb-2 opacity-20" />
-                                <p>All payments settled!</p>
-                            </div>
-                         ) : (
-                            data.pendingPayments.map((t) => {
-                                const pendingAmount = Math.max(0, Number(t.amount) - (Number(t.amount_paid) || 0))
-                                return (
-                                    <div key={t.id} className="flex items-center justify-between border-b border-border/50 last:border-0 pb-3 last:pb-0">
-                                        <div>
-                                            <p className="font-medium text-sm">{t.description}</p>
-                                            <div className="flex gap-2 mt-1">
-                                                <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">
-                                                    {t.payment_status}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">{format(parseISO(t.date), 'dd MMM')}</span>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-bold text-orange-600">₹{pendingAmount.toLocaleString()}</p>
-                                            <p className="text-xs text-muted-foreground">of ₹{Number(t.amount).toLocaleString()}</p>
-                                        </div>
-                                    </div>
-                                )
-                            })
-                         )}
-                    </div>
-                 </div>
-            </div>
-        </div>
 
-            {/* Product Performance Table - Moved to Bottom */}
-            <div className="grid grid-cols-1 gap-6 mb-8 w-full">
-                 <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-                    <div className="p-6 border-b border-border flex justify-between items-center">
-                        <h3 className="text-lg font-semibold">Product Performance (Margins)</h3>
-                        <Link to="/dashboard/inventory" className="text-sm text-primary hover:underline">View All Inventory</Link>
+                {/* Pending Payments */}
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+                   <div className="flex items-center gap-2 mb-4">
+                       <AlertCircle className="w-4 h-4 text-orange-500" />
+                       <h3 className="text-base font-semibold">Pending Payments</h3>
+                   </div>
+                   <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1 custom-scrollbar">
+                        {data.pendingPayments.length === 0 ? (
+                           <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
+                               <CheckCircle className="w-8 h-8 mb-2 opacity-20" />
+                               <p className="text-sm">All payments settled!</p>
+                           </div>
+                        ) : (
+                           data.pendingPayments.map((t) => {
+                               const pendingAmount = Math.max(0, Number(t.amount) - (Number(t.amount_paid) || 0))
+                               return (
+                                   <div key={t.id} className="flex items-center justify-between p-3 rounded-xl bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-800/20">
+                                       <div>
+                                           <p className="font-semibold text-sm text-foreground">{t.description}</p>
+                                           <div className="flex gap-2 mt-1">
+                                               <span className="text-[10px] px-2 py-0.5 bg-orange-200/80 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 rounded-full font-bold">
+                                                   {t.payment_status}
+                                               </span>
+                                               <span className="text-[10px] text-muted-foreground">{format(parseISO(t.date), 'dd MMM')}</span>
+                                           </div>
+                                       </div>
+                                       <div className="text-right">
+                                           <p className="font-black text-orange-600 dark:text-orange-400">₹{pendingAmount.toLocaleString()}</p>
+                                           <p className="text-[10px] text-muted-foreground">of ₹{Number(t.amount).toLocaleString()}</p>
+                                       </div>
+                                   </div>
+                               )
+                           })
+                        )}
+                   </div>
+                </div>
+            </div>
+
+            {/* ── Product Performance Table ── */}
+            <div className="mb-6">
+                 <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
+                    <div className="p-4 sm:p-5 border-b border-border flex justify-between items-center">
+                        <h3 className="text-base font-semibold">Product Performance (Margins)</h3>
+                        <Link to="/dashboard/inventory" className="text-xs text-primary hover:underline font-medium">View All →</Link>
                     </div>
-                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto custom-scrollbar">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-muted/50 text-muted-foreground font-medium">
+                    <div className="overflow-x-auto max-h-[400px] overflow-y-auto custom-scrollbar">
+                        <table className="w-full text-sm text-left min-w-[640px]">
+                            <thead className="bg-muted/50 text-muted-foreground font-semibold text-xs uppercase tracking-wider sticky top-0">
                                 <tr>
-                                    <th className="px-6 py-3">Product</th>
-                                    <th className="px-6 py-3 text-right">Qty Sold</th>
-                                    <th className="px-6 py-3 text-right">Revenue</th>
-                                    <th className="px-6 py-3 text-right">Est. Cost</th>
-                                    <th className="px-6 py-3 text-right">Margin</th>
-                                    <th className="px-6 py-3 text-right">Margin %</th>
-                                    <th className="px-6 py-3 text-right">Last Sold</th>
+                                    <th className="px-4 py-3">Product</th>
+                                    <th className="px-4 py-3 text-right">Qty</th>
+                                    <th className="px-4 py-3 text-right">Revenue</th>
+                                    <th className="px-4 py-3 text-right">Cost</th>
+                                    <th className="px-4 py-3 text-right">Margin</th>
+                                    <th className="px-4 py-3 text-right">%</th>
+                                    <th className="px-4 py-3 text-right">Last Sold</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
                                 {data.productPerformanceData && data.productPerformanceData.length > 0 ? (
                                     data.productPerformanceData.map((prod) => (
                                         <tr key={prod.id} className="hover:bg-muted/30 transition-colors">
-                                            <td className="px-6 py-4 font-medium text-foreground">{prod.name}</td>
-                                            <td className="px-6 py-4 text-right text-muted-foreground">{prod.qty}</td>
-                                            <td className="px-6 py-4 text-right">₹{prod.revenue.toLocaleString()}</td>
-                                            <td className="px-6 py-4 text-right text-muted-foreground">₹{prod.cost.toLocaleString()}</td>
-                                            <td className={`px-6 py-4 text-right font-bold ${prod.margin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            <td className="px-4 py-3 font-semibold text-foreground">{prod.name}</td>
+                                            <td className="px-4 py-3 text-right text-muted-foreground">{prod.qty}</td>
+                                            <td className="px-4 py-3 text-right font-medium">₹{prod.revenue.toLocaleString()}</td>
+                                            <td className="px-4 py-3 text-right text-muted-foreground">₹{prod.cost.toLocaleString()}</td>
+                                            <td className={`px-4 py-3 text-right font-black ${prod.margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                                 ₹{prod.margin.toLocaleString()}
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                    prod.marginPercent >= 20 ? 'bg-green-100 text-green-700' : 
-                                                    prod.marginPercent > 0 ? 'bg-yellow-100 text-yellow-700' :
-                                                    'bg-red-100 text-red-700'
+                                            <td className="px-4 py-3 text-right">
+                                                <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                    prod.marginPercent >= 20 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 
+                                                    prod.marginPercent > 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                                    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                                                 }`}>
                                                     {Math.round(prod.marginPercent)}%
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-right text-muted-foreground text-xs">
-                                                {prod.lastSold ? format(parseISO(prod.lastSold), 'dd MMM yyyy') : '-'}
+                                            <td className="px-4 py-3 text-right text-muted-foreground text-xs">
+                                                {prod.lastSold ? format(parseISO(prod.lastSold), 'dd MMM yy') : '-'}
                                             </td>
                                         </tr>
                                     ))
