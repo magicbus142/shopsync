@@ -1,0 +1,212 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@media print {
+  @page { margin: 0; size: auto; }
+  body { visibility: hidden; }
+  .no-print { display: none !important; }
+  #print-content { 
+    visibility: visible; 
+    position: absolute; 
+    left: 0; 
+    top: 0; 
+    width: 100%; 
+  }
+  #print-content * { visibility: visible; }
+  /* Hide typical specific elements just in case */
+  nav, header, aside, .sidebar { display: none !important; }
+  
+  /* Ensure background colors print */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+
+@layer base {
+  :root {
+    /* Base Variables Shared */
+    --radius: 0.75rem;
+
+    /* 
+       NEW USER THEME 
+       Palette: #6A89A7 (Muted), #BDDDFC (Light), #88BDF2 (Sky), #384959 (Dark)
+    */
+    /* 
+       CLASSIC LIGHT THEME (Professional SaaS)
+       Clean White/Gray Backgrounds, Slate Text, Indigo Accents
+    */
+    --color-background: #f8fafc; /* Slate 50 */
+    --color-foreground: #0f172a; /* Slate 900 */
+
+    --color-card: #ffffff;
+    --color-card-foreground: #0f172a;
+
+    --color-popover: #ffffff;
+    --color-popover-foreground: #0f172a;
+
+    --color-primary: #4f46e5; /* Indigo 600 */
+    --color-primary-foreground: #ffffff;
+
+    --color-secondary: #f1f5f9; /* Slate 100 */
+    --color-secondary-foreground: #0f172a;
+
+    --color-muted: #f1f5f9; /* Slate 100 */
+    --color-muted-foreground: #64748b; /* Slate 500 */
+
+    --color-accent: #f1f5f9;
+    --color-accent-foreground: #0f172a;
+
+    --color-destructive: #ef4444;
+    --color-destructive-foreground: #ffffff;
+
+    --color-border: #e2e8f0; /* Slate 200 */
+    --color-input: #e2e8f0;
+    --color-ring: #4f46e5;
+  }
+
+  /* 
+     Obsidian Theme (Premium Dark) 
+     Pitch black background, sharp contrast, professional feel
+  */
+  [data-theme="obsidian"] {
+    color-scheme: dark;
+    --color-background: #000000;
+    --color-foreground: #ffffff;
+
+    --color-card: #0a0a0a;
+    --color-card-foreground: #ffffff;
+
+    --color-popover: #0a0a0a;
+    --color-popover-foreground: #ffffff;
+
+    --color-primary: #ffffff;
+    --color-primary-foreground: #000000;
+
+    --color-secondary: #27272a;
+    --color-secondary-foreground: #ffffff;
+
+    --color-muted: #27272a;
+    --color-muted-foreground: #a1a1aa;
+
+    --color-accent: #27272a;
+    --color-accent-foreground: #ffffff;
+
+    --color-destructive: #ef4444;
+    --color-destructive-foreground: #ffffff;
+
+    --color-border: #27272a;
+    --color-input: #27272a;
+    --color-ring: #ffffff;
+  }
+
+  /* 
+     Ocean Theme (Trustworthy, Financial) 
+     Deep blues, calm slate grays
+  */
+  [data-theme="ocean"] {
+    color-scheme: light; /* Can be dark, but let's make it a 'dark mode' variant for variety or keep it separate? User asked for 'best themes'. Let's make Ocean a dark, navy-based theme. */
+    color-scheme: dark;
+
+    --color-background: #0f172a; /* Slate 900 */
+    --color-foreground: #f8fafc; /* Slate 50 */
+
+    --color-card: #1e293b; /* Slate 800 */
+    --color-card-foreground: #f8fafc;
+
+    --color-popover: #1e293b;
+    --color-popover-foreground: #f8fafc;
+
+    --color-primary: #38bdf8; /* Sky 400 */
+    --color-primary-foreground: #0f172a;
+
+    --color-secondary: #334155; /* Slate 700 */
+    --color-secondary-foreground: #f8fafc;
+
+    --color-muted: #334155;
+    --color-muted-foreground: #94a3b8; /* Slate 400 */
+
+    --color-accent: #334155;
+    --color-accent-foreground: #f8fafc;
+
+    --color-destructive: #ef4444;
+    --color-destructive-foreground: #ffffff;
+
+    --color-border: #334155;
+    --color-input: #334155;
+    --color-ring: #38bdf8;
+  }
+
+  /* 
+     Sunset Theme (Vibrant SaaS) 
+     Dark background with warm undertones
+  */
+  [data-theme="sunset"] {
+    color-scheme: dark;
+
+    --color-background: #1c1917; /* Stone 900 */
+    --color-foreground: #fafaf9; /* Stone 50 */
+
+    --color-card: #292524; /* Stone 800 */
+    --color-card-foreground: #fafaf9;
+
+    --color-popover: #292524;
+    --color-popover-foreground: #fafaf9;
+
+    --color-primary: #fb923c; /* Orange 400 */
+    --color-primary-foreground: #1c1917;
+
+    --color-secondary: #44403c; /* Stone 700 */
+    --color-secondary-foreground: #fafaf9;
+
+    --color-muted: #44403c;
+    --color-muted-foreground: #a8a29e; /* Stone 400 */
+
+    --color-accent: #44403c;
+    --color-accent-foreground: #fafaf9;
+
+    --color-destructive: #ef4444;
+    --color-destructive-foreground: #ffffff;
+
+    --color-border: #44403c;
+    --color-input: #44403c;
+    --color-ring: #fb923c;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-feature-settings: "rlig" 1, "calt" 1; /* Optimize font rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+/* Custom Utilities for Glassmorphism */
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .dark .glass {
+    background: rgba(9, 9, 11, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.8);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(200, 200, 200, 0.2);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
+      0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  }
+
+  .dark .glass-card {
+    background: rgba(24, 24, 27, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2),
+      0 2px 4px -1px rgba(0, 0, 0, 0.1);
+  }
+}

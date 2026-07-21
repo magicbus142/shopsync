@@ -1,0 +1,26 @@
+@media print {
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Reset visibility for the specific print content */
+  #print-content, #print-content * {
+    visibility: visible;
+  }
+
+  /* Position the print content to fill the page */
+  #print-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Hide sidebar, headers, etc explicitly just in case */
+  nav, header, aside, .no-print {
+    display: none !important;
+  }
+}

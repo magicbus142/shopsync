@@ -1,0 +1,447 @@
+import React from 'react';
+import { Phone, Globe, Instagram, Facebook } from 'lucide-react';
+import phonePeLogo from '../../assets/phonepe.png'
+import googlePayLogo from '../../assets/google-pay.png'
+import { INVOICE_TRANSLATIONS } from '../../utils/translations';
+
+export const InvoiceTemplate = React.forwardRef(({ data, templateType = 'modern', language = 'both' }, ref) => {
+  const { 
+    customer, items, invoiceDate, invoiceNumber, subtotal, 
+    total, payments = [], totalPaid = 0, balanceDue = 0, 
+    showSignature, signatureImage, companyDetails, 
+    showTerms, paymentDetails, showLogo, logoImage,
+    watermarkText, watermarkSize = 80, 
+    documentTitle = 'INVOICE',
+    showCustomerPhoto, customerPhoto // [NEW]
+  } = data;
+
+  // Theme Config
+  const isClassic = templateType === 'classic';
+  const isMinimal = templateType === 'minimal';
+  
+  const BRAND_COLOR = data.brandColor || (isClassic ? '#111827' : '#4F46E5'); // Use dynamic color provided by generator
+  const FONT_FAMILY = isClassic ? '"Times New Roman", serif' : 'Helvetica, Arial, sans-serif';
+
+    // Translation Helper
+    const t = (text) => {
+        if (language === 'en') return text;
+        const trans = INVOICE_TRANSLATIONS[text];
+        if (language === 'te') return trans || text;
+        // 'both'
+        return trans ? `${text} / ${trans}` : text;
+    };
+
+    // Document Title Translation
+    const translatedTitle = (() => {
+        if (language === 'en') return documentTitle;
+        const trans = INVOICE_TRANSLATIONS[documentTitle];
+        if (language === 'te') return trans || documentTitle;
+        return trans ? `${documentTitle} / ${trans}` : documentTitle;
+    })();
+
+  // Dynamic Styles
+  const styles = {
+    container: {
+        width: '210mm',
+        minHeight: '297mm',
+        padding: '32px',
+        margin: '0 auto',
+        fontFamily: FONT_FAMILY,
+        backgroundColor: '#ffffff',
+        color: '#1f2937', 
+        boxSizing: 'border-box',
+        position: 'relative', 
+        overflow: 'hidden' 
+    },
+    headerRow: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: '28px',
+        paddingBottom: '20px',
+        borderBottom: isMinimal ? 'none' : `2px solid ${BRAND_COLOR}`
+    },
+    headerLeft: {
+        display: 'flex',
+        flexDirection: 'column',
+        textAlign: 'left',
+        maxWidth: '60%'
+    },
+    headerRight: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        textAlign: 'right',
+        maxWidth: '40%'
+    },
+    title: {
+        fontSize: isClassic ? '42px' : '36px',
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: isMinimal ? '0.1em' : '0.05em',
+        color: BRAND_COLOR,
+        margin: '0 0 8px 0',
+        lineHeight: '1'
+    },
+    companyName: {
+        fontSize: isClassic ? '28px' : '24px', 
+        fontWeight: 'bold',
+        color: '#111827', 
+        margin: '0 0 8px 0',
+        textTransform: 'uppercase',
+        lineHeight: '1.2',
+        whiteSpace: 'normal',
+        wordBreak: 'break-word'
+    },
+    companyAddress: {
+        fontSize: '13px',
+        color: '#4b5563',
+        margin: '0 0 8px 0',
+        whiteSpace: 'pre-line',
+        lineHeight: '1.4'
+    },
+    phoneRow: {
+        display: 'flex', 
+        alignItems: 'center', 
+        fontSize: '13px', 
+        color: '#4b5563',
+        marginTop: '2px'
+    },
+    billedToSection: {
+        marginTop: '24px',
+        marginBottom: '32px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        borderBottom: isMinimal ? `1px solid #e5e7eb` : 'none', // Minimal separator
+        paddingBottom: isMinimal ? '24px' : '0'
+    },
+    sectionLabel: {
+        fontSize: '11px',
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+        color: '#6b7280',
+        marginBottom: '6px',
+        letterSpacing: '0.05em'
+    },
+    customerName: {
+        fontSize: '16px',
+        fontWeight: 'bold',
+        color: '#111827',
+        marginBottom: '4px',
+        fontFamily: isClassic ? '"Times New Roman", serif' : 'inherit'
+    },
+    invoiceMetaRow: {
+        display: 'flex',
+        justifyContent: 'flex-end',
+        fontSize: '13px',
+        marginBottom: '4px'
+    },
+    // Table Styles
+    table: {
+        width: '100%',
+        marginBottom: '24px',
+        borderCollapse: 'collapse',
+        tableLayout: 'auto',
+        border: isClassic ? '1px solid #000' : 'none'
+    },
+    th: {
+        padding: '12px',
+        textAlign: 'left',
+        fontSize: '11px',
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+        backgroundColor: isMinimal ? 'transparent' : (isClassic ? '#e5e7eb' : '#f3f4f6'), 
+        color: BRAND_COLOR,
+        borderBottom: isClassic ? '1px solid #000' : `1px solid #e5e7eb`,
+        borderRight: isClassic ? '1px solid #000' : 'none'
+    },
+    td: {
+        padding: '12px',
+        fontSize: '13px',
+        borderBottom: isClassic ? '1px solid #000' : (isMinimal ? '1px solid #f3f4f6' : '1px solid #f3f4f6'),
+        borderRight: isClassic ? '1px solid #000' : 'none',
+        color: '#374151',
+        verticalAlign: 'top',
+        fontFamily: isClassic ? '"Times New Roman", serif' : 'inherit'
+    },
+    totalsContainer: {
+        display: 'flex',
+        justifyContent: 'flex-end',
+        marginTop: '16px'
+    },
+    totalRow: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        padding: '6px 0',
+        fontSize: '13px',
+        color: '#4b5563'
+    },
+    finalTotalRow: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        padding: '12px 0 0 0',
+        borderTop: isMinimal ? 'none' : `2px solid ${BRAND_COLOR}`, // Minimal no border
+        marginTop: '8px',
+        fontSize: isMinimal ? '20px' : '16px',
+        fontWeight: 'bold',
+        color: '#111827'
+    },
+    footer: {
+        marginTop: 'auto',
+        paddingTop: '40px',
+        borderTop: isMinimal ? 'none' : '1px solid #e5e7eb',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end'
+    },
+    watermark: {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%) rotate(-45deg)',
+        fontSize: `${watermarkSize}px`,
+        fontWeight: 'bold',
+        color: '#9ca3af',
+        opacity: '0.08',
+        whiteSpace: 'nowrap',
+        pointerEvents: 'none',
+        zIndex: 0,
+        textAlign: 'center'
+    }
+  };
+
+  return (
+    <div ref={ref} style={styles.container}>
+       <div style={styles.watermark}>
+           {watermarkText || companyDetails?.name || 'COMPANY NAME'}
+       </div>
+       
+       {/* Header */}
+       <div style={styles.headerRow}>
+         <div style={styles.headerLeft}>
+             {showLogo && logoImage && (
+                 <img src={logoImage} alt="Logo" style={{ height: '60px', width: 'auto', objectFit: 'contain', marginBottom: '12px' }} />
+             )}
+             <h2 style={styles.companyName}>{companyDetails?.name || 'Your Company Name'}</h2>
+             <p style={{...styles.companyAddress, marginTop: 0}}>{companyDetails?.address || 'Your Business Address'}</p>
+             <div style={styles.phoneRow}>
+                 <Phone size={14} style={{ marginRight: '6px', color: BRAND_COLOR }} />
+                 <span style={{ fontWeight: 500 }}>{companyDetails?.phone || '+91 00000 00000'}</span>
+             </div>
+             {/* [NEW] Social Media Links */}
+             <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+                {companyDetails.website && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px' }}>
+                        <Globe size={10} /> {companyDetails.website}
+                    </div>
+                )}
+                {companyDetails.instagram && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px' }}>
+                        <Instagram size={10} /> {companyDetails.instagram}
+                    </div>
+                )}
+                {companyDetails.facebook && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px' }}>
+                        <Facebook size={10} /> {companyDetails.facebook}
+                    </div>
+                )}
+            </div>
+         </div>
+
+         <div style={styles.headerRight}>
+             <h1 style={styles.title}>{translatedTitle}</h1>
+             <div style={{ marginTop: '12px' }}>
+                 <div style={styles.invoiceMetaRow}>
+                     <span style={styles.metaLabel}>{t('Invoice No')}:</span>
+                     <span style={styles.metaValue}>{invoiceNumber}</span>
+                 </div>
+                 <div style={styles.invoiceMetaRow}>
+                     <span style={styles.metaLabel}>{t('Date')}:</span>
+                     <span style={styles.metaValue}>{invoiceDate}</span>
+                 </div>
+             </div>
+         </div>
+       </div>
+
+       {/* Billed To */}
+       <div style={styles.billedToSection}>
+         <div>
+           <div style={styles.sectionLabel}>{t('Billed To')}:</div>
+           <p style={styles.customerName}>{customer.name || 'Customer Name'}</p>
+           <p style={styles.customerDetails}>{customer.address || 'Address Line 1\nCity, State, Zip'}</p>
+           {customer.phone && <p style={{...styles.customerDetails, marginTop: '4px'}}>Phone: {customer.phone}</p>}
+         </div>
+         
+         {/* [NEW] Customer Photo */}
+         {showCustomerPhoto && customerPhoto && (
+            <div style={{ marginLeft: '20px' }}>
+                <img 
+                   src={customerPhoto} 
+                   alt="Customer" 
+                   style={{ 
+                       width: '80px', 
+                       height: '80px', 
+                       objectFit: 'cover', 
+                       borderRadius: '4px', // Rounded square for professional look
+                       border: '1px solid #e5e7eb'
+                   }} 
+                />
+            </div>
+         )}
+       </div>
+
+       {/* Table */}
+       <div style={{ flex: 1 }}> 
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={{...styles.th, width: '12%', borderTopLeftRadius: isClassic ? 0 : '4px'}}>{t('Date')}</th>
+                  <th style={{...styles.th, width: '28%'}}>{t('Item Description')}</th>
+                  <th style={{...styles.th, width: '8%', textAlign: 'center'}}>{t('Qty')}</th>
+                  <th style={{...styles.th, width: '12%', textAlign: 'right'}}>{t('Price')}</th>
+                  <th style={{...styles.th, width: '12%', textAlign: 'right'}}>{t('Amount')}</th>
+                  <th style={{...styles.th, width: '12%', textAlign: 'right'}}>{t('Paid')}</th>
+                  <th style={{...styles.th, width: '16%', textAlign: 'right', borderTopRightRadius: isClassic ? 0 : '4px', borderRight: isClassic ? '1px solid #000' : 'none'}}>{t('Pending')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, index) => {
+                  const amount = Number(item.quantity) * Number(item.price);
+                  const paid = Number(item.paid || 0);
+                  const pending = amount - paid;
+                  
+                  return (
+                  <tr key={index}>
+                    <td style={styles.td}>
+                        <div style={{ color: '#4b5563', fontSize: '11px' }}>{item.date ? new Date(item.date).toLocaleDateString(language === 'te' ? 'te-IN' : 'en-IN') : '-'}</div>
+                    </td>
+                    <td style={styles.td}>
+                        <div style={{ fontWeight: '600', color: '#111827' }}>{item.name}</div>
+                    </td>
+                    <td style={{...styles.td, textAlign: 'center'}}>{item.quantity}</td>
+                    <td style={{...styles.td, textAlign: 'right'}}>₹{Number(item.price).toLocaleString()}</td>
+                    <td style={{...styles.td, textAlign: 'right'}}>₹{amount.toLocaleString()}</td>
+                    <td style={{...styles.td, textAlign: 'right', color: 'green'}}>₹{paid.toLocaleString()}</td>
+                    <td style={{...styles.td, textAlign: 'right', fontWeight: 'bold', borderRight: isClassic ? '1px solid #000' : 'none', color: pending > 0 ? '#dc2626' : '#111827'}}>
+                        ₹{pending.toLocaleString()}
+                    </td>
+                  </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+
+           {/* Totals */}
+           <div style={styles.totalsContainer}>
+             <div style={styles.totalsBox}>
+               {/* Subtotal */}
+               <div style={{...styles.totalRow, paddingBottom: '4px'}}>
+                 <span style={{ color: '#6b7280' }}>{t('Subtotal')}:</span>
+                 <span style={{ fontWeight: '600', color: '#111827' }}>₹{subtotal.toLocaleString()}</span>
+               </div>
+               
+               {/* Main Total */}
+               <div style={{...styles.finalTotalRow, borderTop: `1px solid #e5e7eb`, paddingTop: '12px', marginTop: '12px', borderBottom: '1px solid #e5e7eb', paddingBottom: '12px'}}>
+                 <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#111827' }}>{t('Total')}:</span>
+                 <span style={{ fontWeight: 'bold', fontSize: '16px', color: BRAND_COLOR }}>₹{total.toLocaleString()}</span>
+               </div>
+
+               {/* Payment History Section */}
+               {payments && payments.length > 0 && (
+                   <div style={{ marginTop: '16px' }}>
+                       <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#6b7280', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>
+                           {t('Payment History')}
+                       </div>
+                       
+                       {payments.map(p => (
+                           <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#4b5563', marginBottom: '4px' }}>
+                               <span>{p.date}</span>
+                               <span>- ₹{Number(p.amount).toLocaleString()}</span>
+                           </div>
+                       ))}
+                       
+                       <div style={{ borderTop: '1px solid #e5e7eb', margin: '8px 0' }}></div>
+
+                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '8px' }}>
+                          <span style={{ color: '#4b5563' }}>{t('Total Paid')}:</span>
+                          <span style={{ fontWeight: 'bold', color: '#059669' }}>₹{totalPaid.toLocaleString()}</span>
+                       </div>
+                   </div>
+               )}
+
+               {/* Balance Due Highlight Box */}
+               <div style={{ 
+                   backgroundColor: '#fdf2f2', // Light Red Background
+                   borderRadius: '4px', 
+                   padding: '8px', 
+                   display: 'flex', 
+                   justifyContent: 'space-between', 
+                   alignItems: 'center',
+                   marginTop: '8px',
+                   border: '1px solid #fecaca'
+               }}>
+                 <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#111827' }}>{t('Balance Due')}:</span>
+                 <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#dc2626' }}>₹{balanceDue.toLocaleString()}</span>
+               </div>
+             </div>
+           </div>
+       </div>
+
+       {/* Footer */}
+       <div style={styles.footer}>
+          <div style={styles.termsBox}>
+             {paymentDetails.show && (
+                 <div style={{ marginBottom: '20px' }}>
+                      <div style={styles.sectionLabel}>{t('Payment Options')}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+                         {paymentDetails.phonePe && (
+                             <div style={{ display: 'flex', alignItems: 'center', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
+                                 <img src={phonePeLogo} style={{height: '18px', width: 'auto', marginRight: '8px' }} alt="PhonePe"/>
+                                 <span>{paymentDetails.phonePe}</span>
+                             </div>
+                         )}
+                         {paymentDetails.googlePay && (
+                             <div style={{ display: 'flex', alignItems: 'center', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
+                                 <img src={googlePayLogo} style={{height: '18px', width: 'auto', marginRight: '8px' }} alt="GPay"/>
+                                 <span>{paymentDetails.googlePay}</span>
+                             </div>
+                         )}
+                         {paymentDetails.upiId && (
+                             <div style={{ display: 'flex', alignItems: 'center', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
+                                 <span style={{ marginRight: '4px', fontWeight: 'bold', color: BRAND_COLOR }}>UPI:</span> {paymentDetails.upiId}
+                             </div>
+                         )}
+                      </div>
+                 </div>
+             )}
+             
+             {showTerms && (
+                 <div>
+                     <div style={styles.sectionLabel}>{t('Terms & Conditions')}</div>
+                     <ul style={{ paddingLeft: '14px', margin: 0, fontSize: '11px', color: '#6b7280', lineHeight: '1.5' }}>
+                         <li>{t('Goods once sold will not be taken back.')}</li>
+                         <li>{t('Interest @ 18% p.a. will be charged if payment is not made within the due date.')}</li>
+                         <li>{t('Subject to local jurisdiction.')}</li>
+                     </ul>
+                 </div>
+             )}
+          </div>
+
+          <div style={styles.signatoryBox}>
+             {showSignature && (
+                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100px' }}>
+                     {signatureImage && <img src={signatureImage} style={{ maxHeight: '60px', marginBottom: '8px' }} alt="Signature" />}
+                     <div style={{ borderTop: '1px solid #1f2937', width: '160px', paddingTop: '8px' }}>
+                         <p style={{ fontSize: '11px', fontWeight: 'bold', margin: 0, textTransform: 'uppercase' }}>{companyDetails.name}</p>
+                         <p style={{ fontSize: '11px', color: '#6b7280', margin: 0 }}>{t('Authorized Signatory')}</p>
+                     </div>
+                 </div>
+             )}
+          </div>
+       </div>
+
+    </div>
+  );
+});
+
+export default InvoiceTemplate;
