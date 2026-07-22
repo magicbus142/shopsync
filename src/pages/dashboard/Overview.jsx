@@ -76,55 +76,55 @@ export default function Overview() {
     setDataLoading(true)
     
     try {
-        // 1. Fetch Transactions
-        let query = supabase
+        // Build queries
+        let txQuery = supabase
           .from('transactions')
           .select('*')
-          .eq('organization_id', currentOrg.id) // Filter by Org
+          .eq('organization_id', currentOrg.id)
           .order('date', { ascending: true })
         
-        // Apply Date Filter to Query (optimization)
         if (dateRange.from && dateRange.to) {
-           query = query.gte('date', dateRange.from).lte('date', dateRange.to)
+           txQuery = txQuery.gte('date', dateRange.from).lte('date', dateRange.to)
         }
-    
-        const { data: transactions, error } = await query
-        
-        // 2. Fetch Products (for Inventory Stats)
-        const { data: products } = await supabase
+
+        const productsQuery = supabase
           .from('products')
           .select('*')
-          .eq('organization_id', currentOrg.id) // Filter by Org
+          .eq('organization_id', currentOrg.id)
           .order('stock', { ascending: true })
-    
-        // 3. Fetch Workers (for Worker Stats)
-        const { data: workers } = await supabase
+
+        const workersQuery = supabase
           .from('workers')
           .select('*')
-          .eq('organization_id', currentOrg.id) // Filter by Org
-    
-        // 4. Fetch Pending (Separate from date filter)
-        // A. Top 6 for list
-        const { data: pendingT } = await supabase
-            .from('transactions')
-            .select('*')
-            .eq('organization_id', currentOrg.id) 
-            .or('payment_status.eq.Pending,payment_status.eq.Partial,payment_status.eq.pending,payment_status.eq.partial')
-            .order('date', { ascending: true }) 
-            // Removed limit to show all in scrollable view
-            // .limit(6) 
-    
-        // B. Total Pending Amount (Fetch all pending to sum)
-        const { data: allPending } = await supabase
-            .from('transactions')
-            .select('amount, amount_paid, type')
-            .eq('organization_id', currentOrg.id)
-            .or('payment_status.eq.Pending,payment_status.eq.Partial,payment_status.eq.pending,payment_status.eq.partial')
-        
+          .eq('organization_id', currentOrg.id)
+
+        const pendingQuery = supabase
+          .from('transactions')
+          .select('*')
+          .eq('organization_id', currentOrg.id) 
+          .or('payment_status.eq.Pending,payment_status.eq.Partial,payment_status.eq.pending,payment_status.eq.partial')
+          .order('date', { ascending: true })
+
+        // Fetch all 4 independent queries CONCURRENTLY in a single parallel burst
+        const [
+          { data: transactions, error },
+          { data: products },
+          { data: workers },
+          { data: pendingT }
+        ] = await Promise.all([
+          txQuery,
+          productsQuery,
+          workersQuery,
+          pendingQuery
+        ])
+
+        if (error) { console.error(error); return }
+
+        // Compute totalReceivables & totalPayables from pendingT
         let totalReceivables = 0 // Income Pending (Customers owe us)
         let totalPayables = 0;    // Expense Pending (We owe dealers)
     
-        (allPending || []).forEach(t => {
+        (pendingT || []).forEach(t => {
             const amount = Number(t.amount) || 0
             const paid = Number(t.amount_paid) || 0
             const pending = Math.max(0, amount - paid)
@@ -135,8 +135,6 @@ export default function Overview() {
                 totalPayables += pending
             }
         })
-    
-        if (error) { console.error(error); return }
     
         // 4. Process KPI Data & Product Revenue
         const safeTx = transactions || []
@@ -362,43 +360,40 @@ export default function Overview() {
         <div className="h-96 flex items-center justify-center text-muted-foreground">Loading Dashboard Data...</div>
       ) : (
         <>
-            {/* ── Hero Financial Cards ── */}
+            {/* ── Hero Financial Cards (Light Colors) ── */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
                 {/* Income */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-5 shadow-lg shadow-emerald-500/20 text-white">
-                    <div className="absolute right-0 top-0 h-28 w-28 -mr-6 -mt-6 rounded-full bg-white/10 blur-2xl"></div>
-                    <div className="relative">
-                        <div className="flex justify-between items-start mb-3">
-                            <p className="text-sm font-semibold text-white/80 uppercase tracking-wider">Total Income</p>
-                            <div className="p-2 bg-white/20 rounded-xl"><TrendingUp className="w-4 h-4"/></div>
-                        </div>
-                        <h3 className="text-3xl font-black tracking-tight">₹{data.totalIncome.toLocaleString()}</h3>
+                <div className="relative overflow-hidden rounded-2xl border border-emerald-200/70 bg-emerald-50/80 dark:bg-emerald-950/20 dark:border-emerald-800/30 p-5 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex justify-between items-start mb-3">
+                        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Total Income</p>
+                        <div className="p-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-xl"><TrendingUp className="w-4 h-4"/></div>
                     </div>
+                    <h3 className="text-3xl font-extrabold tracking-tight text-emerald-950 dark:text-emerald-100">₹{data.totalIncome.toLocaleString()}</h3>
                 </div>
 
                 {/* Expenses */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 p-5 shadow-lg shadow-rose-500/20 text-white">
-                    <div className="absolute right-0 top-0 h-28 w-28 -mr-6 -mt-6 rounded-full bg-white/10 blur-2xl"></div>
-                    <div className="relative">
-                        <div className="flex justify-between items-start mb-3">
-                            <p className="text-sm font-semibold text-white/80 uppercase tracking-wider">Total Expenses</p>
-                            <div className="p-2 bg-white/20 rounded-xl"><TrendingDown className="w-4 h-4"/></div>
-                        </div>
-                        <h3 className="text-3xl font-black tracking-tight">₹{data.totalExpenses.toLocaleString()}</h3>
+                <div className="relative overflow-hidden rounded-2xl border border-rose-200/70 bg-rose-50/80 dark:bg-rose-950/20 dark:border-rose-800/30 p-5 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex justify-between items-start mb-3">
+                        <p className="text-xs font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider">Total Expenses</p>
+                        <div className="p-2 bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 rounded-xl"><TrendingDown className="w-4 h-4"/></div>
                     </div>
+                    <h3 className="text-3xl font-extrabold tracking-tight text-rose-950 dark:text-rose-100">₹{data.totalExpenses.toLocaleString()}</h3>
                 </div>
 
                 {/* Net Profit */}
-                <div className={`relative overflow-hidden rounded-2xl p-5 shadow-lg text-white ${data.netProfit >= 0 ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-500/20' : 'bg-gradient-to-br from-red-600 to-rose-700 shadow-red-500/20'}`}>
-                    <div className="absolute right-0 top-0 h-28 w-28 -mr-6 -mt-6 rounded-full bg-white/10 blur-2xl"></div>
-                    <div className="relative">
-                        <div className="flex justify-between items-start mb-3">
-                            <p className="text-sm font-semibold text-white/80 uppercase tracking-wider">Net Profit</p>
-                            <div className="p-2 bg-white/20 rounded-xl"><Wallet className="w-4 h-4"/></div>
+                <div className={`relative overflow-hidden rounded-2xl border p-5 shadow-sm hover:shadow-md transition-all ${
+                    data.netProfit >= 0 
+                      ? 'border-blue-200/70 bg-blue-50/80 dark:bg-blue-950/20 dark:border-blue-800/30' 
+                      : 'border-red-200/70 bg-red-50/80 dark:bg-red-950/20 dark:border-red-800/30'
+                }`}>
+                    <div className="flex justify-between items-start mb-3">
+                        <p className={`text-xs font-bold uppercase tracking-wider ${data.netProfit >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'}`}>Net Profit</p>
+                        <div className={`p-2 rounded-xl ${data.netProfit >= 0 ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'}`}>
+                            <Wallet className="w-4 h-4"/>
                         </div>
-                        <h3 className="text-3xl font-black tracking-tight">₹{data.netProfit.toLocaleString()}</h3>
-                        <p className="text-xs text-white/60 mt-1">Before Taxes</p>
                     </div>
+                    <h3 className={`text-3xl font-extrabold tracking-tight ${data.netProfit >= 0 ? 'text-blue-950 dark:text-blue-100' : 'text-red-950 dark:text-red-100'}`}>₹{data.netProfit.toLocaleString()}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">Before Taxes</p>
                 </div>
             </div>
 

@@ -26,7 +26,16 @@ export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
-    fetchPlatformStats()
+    const checkAdmin = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      const ADMIN_EMAILS = ["swamirangareddy28@gmail.com", "swamy@magicbus142.com"]
+      if (!user || !user.email || !ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+        window.location.href = '/dashboard'
+        return
+      }
+      fetchPlatformStats()
+    }
+    checkAdmin()
   }, [])
   
 // ... (keep existing functions)

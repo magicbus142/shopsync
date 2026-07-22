@@ -63,8 +63,8 @@ export default function DashboardLayout({ children }) {
             .maybeSingle();
           if (profile?.shop_name) setShopName(profile.shop_name);
 
-          const ADMIN_EMAILS = ["swamy@magicbus142.com"];
-          setIsAdmin(ADMIN_EMAILS.includes(user.email));
+          const ADMIN_EMAILS = ["swamirangareddy28@gmail.com", "swamy@magicbus142.com"];
+          setIsAdmin(user.email ? ADMIN_EMAILS.includes(user.email.toLowerCase()) : false);
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
@@ -77,18 +77,9 @@ export default function DashboardLayout({ children }) {
   }, [navigate]);
 
   const isAdminPath = location.pathname.startsWith('/admin');
-  let menuItems = [];
-
-  if (isAdminPath) {
-    menuItems = [
-      { icon: Shield, label: "Platform Overview", href: "/admin" },
-      { icon: LayoutDashboard, label: "Back to My Shop", href: "/dashboard" }
-    ];
-  } else {
-    menuItems = [...SIDEBAR_ITEMS];
-    if (isAdmin) {
-      menuItems.push({ icon: Shield, label: "Platform Admin", href: "/admin" });
-    }
+  const menuItems = [...SIDEBAR_ITEMS];
+  if (isAdmin || isAdminPath) {
+    menuItems.push({ icon: Shield, label: "Platform Admin", href: "/admin" });
   }
 
   const handleLogout = async () => {
@@ -202,30 +193,26 @@ export default function DashboardLayout({ children }) {
         </div>
       </main>
 
-      {/* ── MOBILE BOTTOM NAV ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border">
-        <div className="flex items-center justify-around px-1 py-1 safe-area-inset-bottom">
+      {/* ── MOBILE BOTTOM NAV (MODERN FLOATING GLASS DOCK) ── */}
+      <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50 bg-card/75 dark:bg-card/75 backdrop-blur-xl border border-white/50 dark:border-white/10 rounded-2xl shadow-2xl shadow-primary/10">
+        <div className="flex items-center justify-around px-2 py-1.5 safe-area-inset-bottom">
           {BOTTOM_NAV.map((item) => {
             const isActive = location.pathname === item.href;
             return (
               <Link
                 key={item.href}
                 to={item.href}
-                className="flex flex-col items-center justify-center gap-0.5 min-w-[56px] py-2 px-1 relative group"
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 py-1 relative group"
               >
-                {/* Active indicator pill */}
-                {isActive && (
-                  <span className="absolute top-1 inset-x-2 h-0.5 rounded-full bg-primary" />
-                )}
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
                   isActive
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/30 scale-110"
-                    : "text-muted-foreground group-hover:bg-muted group-hover:text-foreground"
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-105"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 }`}>
-                  <item.icon className="w-4.5 h-4.5 w-[18px] h-[18px]" />
+                  <item.icon className="w-5 h-5" />
                 </div>
-                <span className={`text-[10px] font-semibold tracking-wide transition-colors ${
-                  isActive ? "text-primary" : "text-muted-foreground"
+                <span className={`text-[10px] font-bold tracking-tight transition-colors ${
+                  isActive ? "text-primary font-black" : "text-muted-foreground"
                 }`}>
                   {item.label}
                 </span>
